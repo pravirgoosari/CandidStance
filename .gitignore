@@ -1,0 +1,23 @@
+# dependencies
+/node_modules
+package-lock.json
+
+# next.js
+/.next/
+/out/
+
+# environment files
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# TLS/SSL certificates
+*.crt
+*.key
+*.pem

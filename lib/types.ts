@@ -1,36 +1,24 @@
-// Basic political issue types
-export interface PoliticalIssue {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
+export interface Source {
+  url: string;
+  title: string;
+  source: string;
 }
 
-// Basic stance information
-export interface Stance {
+export interface PoliticalStance {
   issue: string;
-  position: string;
-  confidence: number; // 0-100
-  source?: string;
+  stance: string;
+  sources: Source[];
 }
 
-// Basic candidate information
-export interface Candidate {
-  name: string;
-  party?: string;
-  stances: Stance[];
-  lastUpdated: Date;
-}
-
-// Basic search request
-export interface SearchRequest {
+export interface CandidateStances {
+  inputName: string;
   candidateName: string;
-  issues?: string[];
+  stances: PoliticalStance[];
+  error?: string;
 }
 
-// Basic search response
-export interface SearchResponse {
-  candidate: Candidate;
-  analysisDate: Date;
-  processingTime: number;
+export interface ApiResponse {
+  success: boolean;
+  data?: CandidateStances;
+  error?: string;
 }

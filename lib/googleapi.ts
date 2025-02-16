@@ -1,251 +1,223 @@
-// RapidAPI Google Web Search integration for political information
-export interface WebSearchResult {
+import { PoliticalStance, Source } from "./types";
+
+// Helper function to delay execution
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+interface WebSearchResult {
   title: string;
-  link: string;
-  snippet: string;
-  domain: string;
+  href: string;
+  body?: string;
+  description?: string;
+  source?: string;
 }
 
-export interface WebSearchRequest {
-  query: string;
-  maxResults?: number;
-  region?: string;
-}
-
-export interface WebSearchResponse {
-  results: WebSearchResult[];
-  totalResults: number;
-  searchTime: number;
-}
-
-// Enhanced source scoring interfaces
-export interface ScoredSource extends WebSearchResult {
+interface ScoredArticle extends WebSearchResult {
   score: number;
-  credibility: "high" | "medium" | "low";
-  factors: ScoringFactor[];
 }
 
-export interface ScoringFactor {
-  name: string;
-  score: number;
-  weight: number;
-  description: string;
-}
+function scoreArticle(article: WebSearchResult, stance: PoliticalStance): number {
+  let score = 0;
+  const lowerTitle = article.title.toLowerCase();
+  const lowerBody = article.body?.toLowerCase() || "";
+  const candidateName = stance.stance.split(" ")[0].toLowerCase(); // e.g., "trump" or "harris"
+  const issueWords = stance.issue.toLowerCase().split(" ");
 
-// RapidAPI configuration
-export const RAPIDAPI_CONFIG = {
-  baseUrl: "https://google-api31.p.rapidapi.com/websearch",
-  maxResults: 10,
-  defaultRegion: "us"
-};
-
-// Domain credibility scoring weights
-export const DOMAIN_CREDIBILITY_WEIGHTS: Record<string, number> = {
-  "reuters.com": 95,
-  "ap.org": 95,
-  "bbc.com": 90,
-  "npr.org": 90,
-  "nytimes.com": 88,
-  "washingtonpost.com": 88,
-  "wsj.com": 88,
-  "cnn.com": 75,
-  "foxnews.com": 70,
-  "msnbc.com": 70,
-  "abcnews.go.com": 80,
-  "cbsnews.com": 80,
-  "nbcnews.com": 80,
-  "politico.com": 85,
-  "rollcall.com": 80,
-  "thehill.com": 75,
-  "realclearpolitics.com": 70,
-  "fivethirtyeight.com": 85,
-  "factcheck.org": 90,
-  "snopes.com": 90
-};
-
-// Function to build search query for political information
-export function buildPoliticalSearchQuery(candidateName: string, issue: string): string {
-  return `${candidateName} political stance ${issue} 2024 election`;
-}
-
-// Source scoring algorithm
-export function scoreSource(source: WebSearchResult): ScoredSource {
-  let totalScore = 0;
-  const factors: ScoringFactor[] = [];
-  
-  // 1. Domain credibility (40% weight)
-  const domainScore = DOMAIN_CREDIBILITY_WEIGHTS[source.domain] || 30;
-  const domainWeight = 0.4;
-  factors.push({
-    name: "Domain Credibility",
-    score: domainScore,
-    weight: domainWeight,
-    description: `Domain ${source.domain} credibility score`
-  });
-  totalScore += domainScore * domainWeight;
-  
-  // 2. Title relevance (25% weight)
-  const titleRelevance = calculateTitleRelevance(source.title);
-  const titleWeight = 0.25;
-  factors.push({
-    name: "Title Relevance",
-    score: titleRelevance,
-    weight: titleWeight,
-    description: "How relevant the title is to political analysis"
-  });
-  totalScore += titleRelevance * titleWeight;
-  
-  // 3. Content freshness (20% weight)
-  const freshnessScore = calculateFreshnessScore(source.snippet);
-  const freshnessWeight = 0.2;
-  factors.push({
-    name: "Content Freshness",
-    score: freshnessScore,
-    weight: freshnessWeight,
-    description: "How recent and relevant the content appears to be"
-  });
-  totalScore += freshnessScore * freshnessWeight;
-  
-  // 4. Source diversity (15% weight)
-  const diversityScore = calculateDiversityScore(source.domain);
-  const diversityWeight = 0.15;
-  factors.push({
-    name: "Source Diversity",
-    score: diversityScore,
-    weight: diversityWeight,
-    description: "How unique this source is compared to others"
-  });
-  totalScore += diversityScore * diversityWeight;
-  
-  // Determine credibility level
-  let credibility: "high" | "medium" | "low";
-  if (totalScore >= 80) credibility = "high";
-  else if (totalScore >= 60) credibility = "medium";
-  else credibility = "low";
-  
-  return {
-    ...source,
-    score: Math.round(totalScore * 100) / 100,
-    credibility,
-    factors
-  };
-}
-
-// Helper function to calculate title relevance
-function calculateTitleRelevance(title: string): number {
-  const politicalKeywords = ["political", "stance", "position", "policy", "election", "campaign", "candidate", "republican", "democrat"];
-  const lowerTitle = title.toLowerCase();
-  let relevanceScore = 50; // Base score
-  
-  politicalKeywords.forEach(keyword => {
-    if (lowerLine.includes(keyword)) {
-      relevanceScore += 10;
-    }
-  });
-  
-  return Math.min(relevanceScore, 100);
-}
-
-// Helper function to calculate freshness score
-function calculateFreshnessScore(snippet: string): number {
-  const currentYear = new Date().getFullYear();
-  const yearPattern = /(20\d{2})/g;
-  const years = snippet.match(yearPattern);
-  
-  if (!years) return 60; // No year mentioned
-  
-  const mostRecentYear = Math.max(...years.map(y => parseInt(y)));
-  const yearDiff = currentYear - mostRecentYear;
-  
-  if (yearDiff === 0) return 100; // Current year
-  if (yearDiff === 1) return 90;  // Last year
-  if (yearDiff === 2) return 80;  // Two years ago
-  if (yearDiff <= 5) return 70;   // Within 5 years
-  return 50; // Older than 5 years
-}
-
-// Helper function to calculate diversity score
-function calculateDiversityScore(domain: string): number {
-  // This would be enhanced to track previously used domains
-  // For now, return a base score
-  return 80;
-}
-
-// Function to score and rank multiple sources
-export function scoreAndRankSources(sources: WebSearchResult[]): ScoredSource[] {
-  const scoredSources = sources.map(scoreSource);
-  
-  // Sort by score (highest first)
-  return scoredSources.sort((a, b) => b.score - a.score);
-}
-
-// Enhanced search function that returns scored sources
-export async function searchPoliticalInfo(request: WebSearchRequest): Promise<WebSearchResponse> {
-  const query = request.query;
-  const maxResults = request.maxResults || RAPIDAPI_CONFIG.maxResults;
-  
-  // Build URL with query parameters
-  const url = new URL(RAPIDAPI_CONFIG.baseUrl);
-  url.searchParams.append("q", query);
-  url.searchParams.append("num", maxResults.toString());
-  url.searchParams.append("region", request.region || RAPIDAPI_CONFIG.defaultRegion);
-  
-  // Make actual API call to RapidAPI
-  const response = await fetch(url.toString(), {
-    method: "GET",
-    headers: {
-      "X-RapidAPI-Key": process.env.RAPIDAPI_KEY || "",
-      "X-RapidAPI-Host": "google-api31.p.rapidapi.com"
-    }
-  });
-  
-  if (!response.ok) {
-    throw new Error("Failed to fetch search results");
+  // Base scoring for candidate name
+  if (lowerTitle.includes(candidateName)) {
+    score += 2; // Reduced from 3 to 2
   }
-  
-  const data = await response.json();
-  
-  // Transform API response to our format
-  const results: WebSearchResult[] = data.results?.map((item: any) => ({
-    title: item.title || "",
-    link: item.link || "",
-    snippet: item.snippet || "",
-    domain: extractDomain(item.link || "")
-  })) || [];
-  
-  return {
-    results: results.slice(0, maxResults),
-    totalResults: results.length,
-    searchTime: Date.now()
-  };
+  if (lowerBody.includes(candidateName)) {
+    score += 1;
+  }
+
+  // Score for issue keywords
+  let hasIssueInTitle = false;
+  issueWords.forEach(word => {
+    if (word.length > 3) { // Ignore small words like "and", "for"
+      if (lowerTitle.includes(word)) {
+        score += 2;
+        hasIssueInTitle = true;
+      }
+      if (lowerBody.includes(word)) {
+        score += 1;
+      }
+    }
+  });
+
+  // Bonus for having both candidate name and issue in title
+  if (hasIssueInTitle && lowerTitle.includes(candidateName)) {
+    score += 3;
+  }
+
+  // Bonus for policy/stance keywords in title
+  const policyKeywords = ["policy", "stance", "position", "plan", "proposal", "announces", "pledges"];
+  if (policyKeywords.some(keyword => lowerTitle.includes(keyword))) {
+    score += 2;
+  }
+
+  // Penalty for other politician names in title
+  const otherPoliticians = ["biden", "harris", "desantis", "pence", "newsom", "pelosi", "mcconnell", "obama"]
+    .filter(name => name !== candidateName);
+  if (otherPoliticians.some(name => lowerTitle.includes(name))) {
+    score -= 2;
+  }
+
+  // Small bonus for reputable sources (reduced from 3 to 1)
+  const reputableSources = [
+    "reuters", "ap", "bloomberg", "nytimes", "wsj", "washingtonpost", 
+    "bbc", "npr", "politico", "thehill", "axios", "cnbc", "forbes"
+  ];
+  if (reputableSources.some(s => article.source?.toLowerCase().includes(s))) {
+    score += 1;
+  }
+
+  return score;
 }
 
-// Function to search for candidate stances on specific issues
-export async function searchCandidateStance(candidateName: string, issue: string): Promise<WebSearchResponse> {
-  const query = buildPoliticalSearchQuery(candidateName, issue);
-  return searchPoliticalInfo({ query, maxResults: 10 });
-}
-
-// Function to get scored sources for a candidate stance
-export async function getScoredSources(candidateName: string, issue: string): Promise<ScoredSource[]> {
-  const searchResponse = await searchCandidateStance(candidateName, issue);
-  return scoreAndRankSources(searchResponse.results);
-}
-
-// Function to validate web search results
-export function validateWebSearchResults(results: WebSearchResult[]): WebSearchResult[] {
-  return results.filter(result => 
-    result.link && 
-    result.title && 
-    result.domain !== "example.com" // Filter out mock results
-  );
-}
-
-// Function to extract domain from URL
-export function extractDomain(url: string): string {
+export async function findRelevantSources(stance: PoliticalStance, maxResults: number = 2): Promise<Source[]> {
   try {
-    return new URL(url).hostname.toLowerCase();
-  } catch {
-    return url;
+    // Check for API key at runtime
+    if (!process.env.GOOGLE_API_KEY) {
+      throw new Error("Missing GOOGLE_API_KEY environment variable");
+    }
+
+    // Use the full stance text as the search query
+    const searchQuery = stance.stance;
+    console.log("
+-------------------");
+    console.log(`Starting search for stance: ${stance.issue}`);
+    console.log(`Query: ${searchQuery}`);
+    console.log("-------------------");
+    
+    // Add a delay before each API call to respect rate limits
+    await delay(1100);
+    
+    const response = await fetch("https://google-api31.p.rapidapi.com/websearch", {
+      method: "POST",
+      headers: {
+        "x-rapidapi-key": process.env.GOOGLE_API_KEY!,
+        "x-rapidapi-host": "google-api31.p.rapidapi.com",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        text: searchQuery,
+        safesearch: "off",
+        timelimit: "",
+        region: "wt-wt",
+        max_results: 20
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Google API Error Response:", {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText
+      });
+      
+      if (response.status === 429) {
+        console.log("Rate limit hit, waiting 2 seconds and retrying...");
+        await delay(2000);
+        return findRelevantSources(stance, maxResults);
+      }
+      
+      return [];
+    }
+
+    const data = await response.json();
+    
+    if (!data.result || data.result.length === 0) {
+      console.log("No results found in Google API response");
+      return [];
+    }
+
+    // Log all articles before filtering
+    console.log(`
+All articles found for ${stance.issue}:`);
+    data.result.forEach((article: WebSearchResult, index: number) => {
+      console.log(`
+${index + 1}. "${article.title}"`);
+      console.log(`   Source: ${article.source || new URL(article.href).hostname}`);
+      console.log(`   URL: ${article.href}`);
+    });
+
+    // Filter and score articles
+    const scoredArticles = data.result.map((article: WebSearchResult) => ({
+      ...article,
+      score: scoreArticle(article, stance)
+    }));
+
+    // Log scoring details
+    console.log(`
+Scored articles for ${stance.issue}:`);
+    scoredArticles.forEach((article: ScoredArticle, index: number) => {
+      console.log(`
+${index + 1}. Score: ${article.score}`);
+      console.log(`
+   Title: "${article.title}"`);
+      console.log(`   Source: ${article.source || new URL(article.href).hostname}`);
+      console.log(`   Intended for: ${stance.issue}`);
+    });
+
+    // Sort by score and take only articles with score >= 5
+    const highScoringArticles = scoredArticles
+      .filter((article: ScoredArticle) => article.score >= 5)
+      .sort((a: ScoredArticle, b: ScoredArticle) => b.score - a.score)
+      .slice(0, maxResults)
+      .map((article: ScoredArticle) => ({
+        url: article.href,
+        title: article.title,
+        source: article.source || new URL(article.href).hostname
+      }));
+
+    console.log(`
+High scoring articles (score >= 5) for ${stance.issue}:`);
+    if (highScoringArticles.length > 0) {
+      highScoringArticles.forEach((article: Source, index: number) => {
+        console.log(`
+${index + 1}. "${article.title}"`);
+        console.log(`   Source: ${article.source}`);
+      });
+    } else {
+      console.log("No articles met the minimum score threshold of 5");
+    }
+    console.log(`
+Finished processing stance: ${stance.issue}`);
+    console.log("-------------------
+");
+
+    // If no articles meet the threshold, return a special message
+    if (highScoringArticles.length === 0) {
+      return [{
+        url: "",
+        title: "We are unable to verify this information",
+        source: "No reliable sources found"
+      }];
+    }
+
+    return highScoringArticles;
+  } catch (error) {
+    console.error(`Error fetching articles for stance ${stance.issue}:`, error);
+    return [];
+  }
+}
+
+export async function verifyStanceWithSources(stance: PoliticalStance): Promise<PoliticalStance> {
+  try {
+    // Do ONE search for this specific stance and keep its results
+    const sources = await findRelevantSources(stance);
+    
+    // Return the stance with ONLY its intended sources
+    return {
+      ...stance,
+      sources: sources
+    };
+  } catch (error) {
+    console.error(`Error finding sources for stance ${stance.issue}:`, error);
+    return {
+      ...stance,
+      sources: []
+    };
   }
 }

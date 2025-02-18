@@ -1,94 +1,41 @@
-import { Pool, PoolClient } from "pg";
+import { Pool } from "pg";
+import { config } from "dotenv";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 
-// Database configuration
-const dbConfig = {
-  host: process.env.DB_HOST || "localhost",
-  port: parseInt(process.env.DB_PORT || "5432"),
-  database: process.env.DB_NAME || "candidstance",
-  user: process.env.DB_USER || "postgres",
-  password: process.env.DB_PASSWORD || "",
-  max: 20, // Maximum number of clients in the pool
-  idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
-};
+// Load environment variables from .env.local
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+config({ path: join(__dirname, "..", ".env.local") });
 
-// Create connection pool
-const pool = new Pool(dbConfig);
+// Lazy initialization - only create pool when first accessed
+let _pool: Pool | null = null;
 
-// Handle pool errors
-pool.on("error", (err) => {
-  console.error("Unexpected error on idle client", err);
-  process.exit(-1);
-});
+function getPool(): Pool {
+  if (!_pool) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error("Please add your DATABASE_URL to .env.local");
+    }
+    _pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 2000,
+    });
 
-// Database connection interface
-export interface DatabaseConnection {
-  query: (text: string, params?: any[]) => Promise<any>;
-  release: () => void;
-}
+    // Test the connection
+    _pool.on("connect", () => {
+      console.log("Connected to PostgreSQL database");
+    });
 
-// Get a client from the pool
-export async function getClient(): Promise<PoolClient> {
-  try {
-    const client = await pool.connect();
-    return client;
-  } catch (error) {
-    console.error("Error getting database client:", error);
-    throw new Error("Failed to connect to database");
+    _pool.on("error", (err) => {
+      console.error("Unexpected error on idle client", err);
+      process.exit(-1);
+    });
   }
+  return _pool;
 }
 
-// Execute a query with a client
-export async function executeQuery<T = any>(
-  query: string, 
-  params: any[] = []
-): Promise<T[]> {
-  const client = await getClient();
-  
-  try {
-    const result = await client.query(query, params);
-    return result.rows;
-  } catch (error) {
-    console.error("Error executing query:", error);
-    throw new Error("Database query failed");
-  } finally {
-    client.release();
-  }
-}
-
-// Execute a transaction
-export async function executeTransaction<T>(
-  callback: (client: PoolClient) => Promise<T>
-): Promise<T> {
-  const client = await getClient();
-  
-  try {
-    await client.query("BEGIN");
-    const result = await callback(client);
-    await client.query("COMMIT");
-    return result;
-  } catch (error) {
-    await client.query("ROLLBACK");
-    throw error;
-  } finally {
-    client.release();
-  }
-}
-
-// Health check function
-export async function checkDatabaseHealth(): Promise<boolean> {
-  try {
-    await executeQuery("SELECT 1");
-    return true;
-  } catch (error) {
-    console.error("Database health check failed:", error);
-    return false;
-  }
-}
-
-// Close the pool (call this when shutting down the app)
-export async function closePool(): Promise<void> {
-  await pool.end();
-}
-
-export default pool;
+// Export the getter function
+export default getPool;

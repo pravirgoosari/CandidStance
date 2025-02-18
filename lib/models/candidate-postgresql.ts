@@ -1,238 +1,97 @@
-import { executeQuery, executeTransaction, getClient } from "../database/postgresql";
+import { CandidateStances, PoliticalStance } from "../types.js";
+import getPool from "../database/postgresql";
 
-// Database interfaces
-export interface DBCandidate {
-  id: string;
+export interface CandidateDocument {
+  id?: number;
   name: string;
-  party?: string;
-  office?: string;
-  state?: string;
-  is_active: boolean;
-  created_at: Date;
-  updated_at: Date;
+  normalizedName: string;
+  lastUpdated: Date;
+  metadata: {
+    searchCount: number;
+    lastSearched: Date;
+  };
+  stances: PoliticalStance[];
 }
 
-export interface DBPoliticalStance {
-  id: string;
-  candidate_id: string;
-  issue_id: string;
-  stance: string;
-  confidence: number;
-  reasoning?: string;
-  ai_analysis_id?: string;
-  created_at: Date;
-  updated_at: Date;
+function normalizeName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z]/g, "");
 }
 
-export interface DBSourceVerification {
-  id: string;
-  stance_id: string;
-  source_url: string;
-  source_title?: string;
-  source_domain?: string;
-  credibility_score: number;
-  credibility_level: "high" | "medium" | "low";
-  verification_factors: any;
-  verified_at: Date;
-  created_at: Date;
-}
-
-// Candidate model class
-export class CandidateModel {
+export async function findCandidate(name: string): Promise<CandidateDocument | null> {
+  const normalizedName = normalizeName(name);
   
-  // Create a new candidate
-  static async create(candidate: Omit<DBCandidate, "id" | "created_at" | "updated_at">): Promise<string> {
-    const query = `
-      INSERT INTO candidates (name, party, office, state, is_active)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING id
-    `;
+  try {
+    const pool = getPool();
+    const result = await pool.query(
+      "SELECT id, name, normalized_name as \"normalizedName\", last_updated as \"lastUpdated\", search_count as \"searchCount\", last_searched as \"lastSearched\", stances FROM candidates WHERE normalized_name = $1",
+      [normalizedName]
+    );
     
-    const result = await executeQuery<{ id: string }>(query, [
-      candidate.name,
-      candidate.party,
-      candidate.office,
-      candidate.state,
-      candidate.is_active
-    ]);
+    if (result.rows.length === 0) {
+      return null;
+    }
     
-    return result[0].id;
-  }
-
-  // Get candidate by ID
-  static async getById(id: string): Promise<DBCandidate | null> {
-    const query = `
-      SELECT * FROM candidates WHERE id = $1
-    `;
-    
-    const result = await executeQuery<DBCandidate>(query, [id]);
-    return result.length > 0 ? result[0] : null;
-  }
-
-  // Get candidate by name
-  static async getByName(name: string): Promise<DBCandidate | null> {
-    const query = `
-      SELECT * FROM candidates WHERE name ILIKE $1 AND is_active = true
-    `;
-    
-    const result = await executeQuery<DBCandidate>(query, [name]);
-    return result.length > 0 ? result[0] : null;
-  }
-
-  // Search candidates by name (partial match)
-  static async searchByName(searchTerm: string): Promise<DBCandidate[]> {
-    const query = `
-      SELECT * FROM candidates 
-      WHERE name ILIKE $1 AND is_active = true
-      ORDER BY name
-      LIMIT 10
-    `;
-    
-    return executeQuery<DBCandidate>(query, [`%${searchTerm}%`]);
-  }
-
-  // Update candidate
-  static async update(id: string, updates: Partial<Omit<DBCandidate, "id" | "created_at" | "updated_at">>): Promise<boolean> {
-    const fields = Object.keys(updates).filter(key => updates[key as keyof typeof updates] !== undefined);
-    
-    if (fields.length === 0) return false;
-    
-    const setClause = fields.map((field, index) => `${field} = $${index + 2}`).join(", ");
-    const query = `
-      UPDATE candidates 
-      SET ${setClause}
-      WHERE id = $1
-    `;
-    
-    const values = [id, ...fields.map(field => updates[field as keyof typeof updates])];
-    const result = await executeQuery(query, values);
-    
-    return result.length > 0;
-  }
-
-  // Soft delete candidate (set is_active to false)
-  static async deactivate(id: string): Promise<boolean> {
-    const query = `
-      UPDATE candidates SET is_active = false WHERE id = $1
-    `;
-    
-    const result = await executeQuery(query, [id]);
-    return result.length > 0;
-  }
-
-  // Get all active candidates
-  static async getAllActive(): Promise<DBCandidate[]> {
-    const query = `
-      SELECT * FROM candidates 
-      WHERE is_active = true 
-      ORDER BY name
-      ORDER BY name
-    `;
-    
-    return executeQuery<DBCandidate>(query);
-  }
-
-  // Get candidates by party
-  static async getByParty(party: string): Promise<DBCandidate[]> {
-    const query = `
-      SELECT * FROM candidates 
-      WHERE party ILIKE $1 AND is_active = true
-      ORDER BY name
-    `;
-    
-    return executeQuery<DBCandidate>(query, [party]);
-  }
-
-  // Get candidates by state
-  static async getByState(state: string): Promise<DBCandidate[]> {
-    const query = `
-      SELECT * FROM candidates 
-      WHERE state ILIKE $1 AND is_active = true
-      ORDER BY name
-    `;
-    
-    return executeQuery<DBCandidate>(query, [state]);
-  }
-
-  // Get candidate with all their political stances
-  static async getWithStances(candidateId: string): Promise<{
-    candidate: DBCandidate;
-    stances: DBPoliticalStance[];
-  } | null> {
-    const candidate = await this.getById(candidateId);
-    if (!candidate) return null;
-
-    const stancesQuery = `
-      SELECT ps.*, pi.name as issue_name, pi.category as issue_category
-      FROM political_stances ps
-      JOIN political_issues pi ON ps.issue_id = pi.id
-      WHERE ps.candidate_id = $1
-      ORDER BY pi.name
-    `;
-    
-    const stances = await executeQuery<DBPoliticalStance & { issue_name: string; issue_category: string }>(stancesQuery, [candidateId]);
-    
+    const row = result.rows[0];
     return {
-      candidate,
-      stances: stances.map(({ issue_name, issue_category, ...stance }) => stance)
+      id: row.id,
+      name: row.name,
+      normalizedName: row.normalizedName,
+      lastUpdated: row.lastUpdated,
+      metadata: {
+        searchCount: row.searchCount,
+        lastSearched: row.lastSearched
+      },
+      stances: row.stances
     };
+  } catch (error) {
+    console.error("Error finding candidate:", error);
+    throw error;
   }
+}
 
-  // Create or update a political stance for a candidate
-  static async upsertStance(
-    candidateId: string, 
-    issueId: string, 
-    stance: Omit<DBPoliticalStance, "id" | "candidate_id" | "issue_id" | "created_at" | "updated_at">
-  ): Promise<string> {
-    const query = `
-      INSERT INTO political_stances (candidate_id, issue_id, stance, confidence, reasoning, ai_analysis_id)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      ON CONFLICT (candidate_id, issue_id) 
+export async function updateCandidate(data: CandidateStances): Promise<void> {
+  const normalizedName = normalizeName(data.candidateName);
+  const now = new Date();
+
+  try {
+    const pool = getPool();
+    // Convert stances array to JSON string for PostgreSQL JSONB column
+    const stancesJson = JSON.stringify(data.stances);
+    
+    // Use PostgreSQL UPSERT (INSERT ... ON CONFLICT)
+    await pool.query(`
+      INSERT INTO candidates (name, normalized_name, last_updated, search_count, last_searched, stances)
+      VALUES ($1, $2, $3, 1, $3, $4)
+      ON CONFLICT (normalized_name) 
       DO UPDATE SET 
-        stance = EXCLUDED.stance,
-        confidence = EXCLUDED.confidence,
-        reasoning = EXCLUDED.reasoning,
-        ai_analysis_id = EXCLUDED.ai_analysis_id,
-        updated_at = CURRENT_TIMESTAMP
-      RETURNING id
-    `;
-    
-    const result = await executeQuery<{ id: string }>(query, [
-      candidateId,
-      issueId,
-      stance.stance,
-      stance.confidence,
-      stance.reasoning,
-      stance.ai_analysis_id
-    ]);
-    
-    return result[0].id;
+        name = EXCLUDED.name,
+        last_updated = EXCLUDED.last_updated,
+        search_count = candidates.search_count + 1,
+        last_searched = EXCLUDED.last_updated,
+        stances = EXCLUDED.last_updated,
+        stances = EXCLUDED.stances
+    `, [data.candidateName, normalizedName, now, stancesJson]);
+  } catch (error) {
+    console.error("Error updating candidate:", error);
+    throw error;
   }
+}
 
-  // Get candidate stances by issue category
-  static async getStancesByCategory(candidateId: string, category: string): Promise<DBPoliticalStance[]> {
-    const query = `
-      SELECT ps.*
-      FROM political_stances ps
-      JOIN political_issues pi ON ps.issue_id = pi.id
-      WHERE ps.candidate_id = $1 AND pi.category = $2
-      ORDER BY pi.name
-    `;
-    
-    return executeQuery<DBPoliticalStance>(query, [candidateId, category]);
-  }
+export function isStale(lastUpdated: Date): boolean {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  return lastUpdated < thirtyDaysAgo;
+}
 
-  // Get candidates with stance on specific issue
-  static async getCandidatesWithStance(issueId: string): Promise<DBCandidate[]> {
-    const query = `
-      SELECT DISTINCT c.*
-      FROM candidates c
-      JOIN political_stances ps ON c.id = ps.candidate_id
-      WHERE ps.issue_id = $1 AND c.is_active = true
-      ORDER BY c.name
-      ORDER BY c.name
-    `;
-    
-    return result.length > 0;
+// Initialize database schema
+export async function initializeDatabase(): Promise<void> {
+  try {
+    const pool = getPool();
+    const schema = await import("fs").then(fs => fs.readFileSync("./lib/database/schema.sql", "utf8"));
+    await pool.query(schema);
+    console.log("Database schema initialized successfully");
+  } catch (error) {
+    console.error("Error initializing database schema:", error);
+    throw error;
   }
 }

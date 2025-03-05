@@ -1,0 +1,25 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo "Starting deployment to EKS..."
+      - aws eks update-kubeconfig --name candidstance-cluster --region us-east-1
+      - echo "Kubeconfig updated successfully"
+
+  build:
+    commands:
+      - echo "Deploying new image to EKS..."
+      - "kubectl set image deployment/candidstance-app candidstance-app=041417444316.dkr.ecr.us-east-1.amazonaws.com/candidstance-app:latest -n candidstance"
+      - echo "Image updated in deployment"
+      - kubectl rollout status deployment/candidstance-app -n candidstance --timeout=300s
+      - echo "Deployment rollout completed successfully"
+
+  post_build:
+    commands:
+      - echo "Deployment completed successfully!"
+      - echo "New image is now running in EKS"
+
+artifacts:
+  files:
+    - "**/*"

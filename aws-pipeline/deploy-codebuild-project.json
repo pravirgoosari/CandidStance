@@ -1,0 +1,29 @@
+{
+    "name": "candidstance-deploy",
+    "source": {
+        "type": "CODEPIPELINE",
+        "buildspec": "deploy-buildspec.yml"
+    },
+    "artifacts": {
+        "type": "CODEPIPELINE"
+    },
+    "environment": {
+        "type": "LINUX_CONTAINER",
+        "image": "aws/codebuild/amazonlinux2-x86_64-standard:4.0",
+        "computeType": "BUILD_GENERAL1_SMALL",
+        "privilegedMode": false,
+        "environmentVariables": [
+            {
+                "name": "CLUSTER_NAME",
+                "value": "candidstance-cluster",
+                "type": "PLAINTEXT"
+            },
+            {
+                "name": "REGION",
+                "value": "us-east-1",
+                "type": "PLAINTEXT"
+            }
+        ]
+    },
+    "serviceRole": "arn:aws:iam::041417444316:role/candidstance-codebuild-role"
+}

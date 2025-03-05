@@ -1,0 +1,88 @@
+{
+    "pipeline": {
+        "name": "candidstance-pipeline",
+        "roleArn": "arn:aws:iam::041417444316:role/candidstance-codepipeline-role",
+            "artifactStores": {
+      "us-east-1": {
+        "type": "S3",
+        "location": "candidstance-pipeline-artifacts"
+      }
+    },
+        "stages": [
+            {
+                "name": "Source",
+                "actions": [
+                    {
+                        "name": "Source",
+                        "actionTypeId": {
+                            "category": "Source",
+                            "owner": "AWS",
+                            "provider": "CodeStarSourceConnection",
+                            "version": "1"
+                        },
+                        "configuration": {
+                            "ConnectionArn": "arn:aws:codestar-connections:us-east-1:041417444316:connection/5c75704e-d222-4377-a3a1-1ee52dbdacb3",
+                            "FullRepositoryId": "pravirgoosari/CandidStance",
+                            "BranchName": "main"
+                        },
+                        "outputArtifacts": [
+                            {
+                                "name": "SourceCode"
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "Build",
+                "actions": [
+                    {
+                        "name": "Build",
+                        "actionTypeId": {
+                            "category": "Build",
+                            "owner": "AWS",
+                            "provider": "CodeBuild",
+                            "version": "1"
+                        },
+                        "configuration": {
+                            "ProjectName": "candidstance-build"
+                        },
+                        "inputArtifacts": [
+                            {
+                                "name": "SourceCode"
+                            }
+                        ],
+                        "outputArtifacts": [
+                            {
+                                "name": "BuildOutput"
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "Deploy",
+                "actions": [
+                    {
+                        "name": "Deploy",
+                        "actionTypeId": {
+                            "category": "Build",
+                            "owner": "AWS",
+                            "provider": "CodeBuild",
+                            "version": "1"
+                        },
+                        "configuration": {
+                            "ProjectName": "candidstance-deploy"
+                        },
+                        "outputArtifacts": [],
+                        "inputArtifacts": [
+                            {
+                                "name": "SourceCode"
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}

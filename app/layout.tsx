@@ -12,11 +12,11 @@ const spaceGrotesk = Space_Grotesk({
 export const metadata: Metadata = {
   title: "CandidStance - Discover Political Stances",
   description:
-    "Discover candidates positions on key issues with AI-driven analysis and credible sources",
-  metadataBase: new URL("https://candidstance.app"),
+    "Discover candidates' positions on key issues with AI-driven analysis and credible sources",
+  metadataBase: new URL('https://candidstance.app'),
   openGraph: {
     title: "CandidStance - Discover Political Stances",
-    description: "Discover candidates positions on key issues with AI-driven analysis and credible sources",
+    description: "Discover candidates' positions on key issues with AI-driven analysis and credible sources",
     url: "https://candidstance.app",
     siteName: "CandidStance",
     locale: "en_US",
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "CandidStance - Discover Political Stances",
-    description: "Discover candidates positions on key issues with AI-driven analysis and credible sources",
+    description: "Discover candidates' positions on key issues with AI-driven analysis and credible sources",
   },
   viewport: {
     width: "device-width",
@@ -33,12 +33,12 @@ export const metadata: Metadata = {
     maximumScale: 1,
   },
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
-    apple: "/apple-touch-icon.png",
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/apple-touch-icon.png',
     other: [
-      { rel: "apple-touch-icon", url: "/apple-touch-icon.png" },
-      { rel: "mask-icon", url: "/favicon.svg", color: "#2864EC" }
+      { rel: 'apple-touch-icon', url: '/apple-touch-icon.png' },
+      { rel: 'mask-icon', url: '/favicon.svg', color: '#2864EC' }
     ]
   },
   manifest: "/manifest.json",

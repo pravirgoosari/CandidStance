@@ -1,5 +1,5 @@
-import { CandidateStances, PoliticalStance } from "../types.js";
-import getPool from "../database/postgresql";
+import { CandidateStances, PoliticalStance } from '../types.js';
+import getPool from '../database/postgresql';
 
 export interface CandidateDocument {
   id?: number;
@@ -14,7 +14,7 @@ export interface CandidateDocument {
 }
 
 function normalizeName(name: string): string {
-  return name.toLowerCase().replace(/[^a-z]/g, "");
+  return name.toLowerCase().replace(/[^a-z]/g, '');
 }
 
 export async function findCandidate(name: string): Promise<CandidateDocument | null> {
@@ -23,7 +23,7 @@ export async function findCandidate(name: string): Promise<CandidateDocument | n
   try {
     const pool = getPool();
     const result = await pool.query(
-      "SELECT id, name, normalized_name as \"normalizedName\", last_updated as \"lastUpdated\", search_count as \"searchCount\", last_searched as \"lastSearched\", stances FROM candidates WHERE normalized_name = $1",
+      'SELECT id, name, normalized_name as "normalizedName", last_updated as "lastUpdated", search_count as "searchCount", last_searched as "lastSearched", stances FROM candidates WHERE normalized_name = $1',
       [normalizedName]
     );
     
@@ -44,7 +44,7 @@ export async function findCandidate(name: string): Promise<CandidateDocument | n
       stances: row.stances
     };
   } catch (error) {
-    console.error("Error finding candidate:", error);
+    console.error('Error finding candidate:', error);
     throw error;
   }
 }
@@ -68,11 +68,10 @@ export async function updateCandidate(data: CandidateStances): Promise<void> {
         last_updated = EXCLUDED.last_updated,
         search_count = candidates.search_count + 1,
         last_searched = EXCLUDED.last_updated,
-        stances = EXCLUDED.last_updated,
         stances = EXCLUDED.stances
     `, [data.candidateName, normalizedName, now, stancesJson]);
   } catch (error) {
-    console.error("Error updating candidate:", error);
+    console.error('Error updating candidate:', error);
     throw error;
   }
 }
@@ -87,11 +86,11 @@ export function isStale(lastUpdated: Date): boolean {
 export async function initializeDatabase(): Promise<void> {
   try {
     const pool = getPool();
-    const schema = await import("fs").then(fs => fs.readFileSync("./lib/database/schema.sql", "utf8"));
+    const schema = await import('fs').then(fs => fs.readFileSync('./lib/database/schema.sql', 'utf8'));
     await pool.query(schema);
-    console.log("Database schema initialized successfully");
+    console.log('Database schema initialized successfully');
   } catch (error) {
-    console.error("Error initializing database schema:", error);
+    console.error('Error initializing database schema:', error);
     throw error;
   }
 }

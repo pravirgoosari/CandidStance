@@ -20,9 +20,9 @@ CREATE INDEX IF NOT EXISTS idx_candidates_search_count ON candidates(search_coun
 CREATE INDEX IF NOT EXISTS idx_candidates_stances_gin ON candidates USING GIN (stances);
 
 -- Add comments for documentation
-COMMENT ON TABLE candidates IS "Stores candidate political stance information";
-COMMENT ON COLUMN candidates.normalized_name IS "Lowercase, alphanumeric version of name for efficient lookups";
-COMMENT ON COLUMN candidates.stances IS "JSON array of political stances with sources";
-COMMENT ON COLUMN candidates.search_count IS "Number of times this candidate has been searched";
-COMMENT ON COLUMN candidates.last_updated IS "When the candidate data was last updated from API";
-COMMENT ON COLUMN candidates.last_searched IS "When the candidate was last searched by a user";
+COMMENT ON TABLE candidates IS 'Stores candidate political stance information';
+COMMENT ON COLUMN candidates.normalized_name IS 'Lowercase, alphanumeric version of name for efficient lookups';
+COMMENT ON COLUMN candidates.stances IS 'JSON array of political stances with sources';
+COMMENT ON COLUMN candidates.search_count IS 'Number of times this candidate has been searched';
+COMMENT ON COLUMN candidates.last_updated IS 'When the candidate data was last updated from API';
+COMMENT ON COLUMN candidates.last_searched IS 'When the candidate was last searched by a user';

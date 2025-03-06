@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import OpenAI from 'openai';
 
 // Lazy initialization - only create OpenAI instance when first accessed
 let _openai: OpenAI | null = null;
@@ -6,7 +6,7 @@ let _openai: OpenAI | null = null;
 function getOpenAI(): OpenAI {
   if (!_openai) {
     if (!process.env.OPENAI_API_KEY) {
-      throw new Error("Missing OPENAI_API_KEY environment variable");
+      throw new Error('Missing OPENAI_API_KEY environment variable');
     }
     _openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
@@ -41,25 +41,25 @@ export const openai = {
 };
 
 export const POLITICAL_ISSUES = [
-  "Economy & Taxes",
-  "Healthcare & Insurance",
-  "Abortion & Reproductive Rights",
-  "Climate & Environment",
-  "Elections & Voting Rights",
-  "Gun Control & Public Safety",
-  "Israel-Palestine Conflict",
-  "Russia-Ukraine War",
-  "Technology & Privacy",
-  "Immigration & Border Security",
-  "LGBTQ+ Rights",
-  "Education"
+  'Economy & Taxes',
+  'Healthcare & Insurance',
+  'Abortion & Reproductive Rights',
+  'Climate & Environment',
+  'Elections & Voting Rights',
+  'Gun Control & Public Safety',
+  'Israel-Palestine Conflict',
+  'Russia-Ukraine War',
+  'Technology & Privacy',
+  'Immigration & Border Security',
+  'LGBTQ+ Rights',
+  'Education'
 ] as const;
 
-export const GPT_SYSTEM_PROMPT = `You are a non-partisan political stance analyzer. Your task is to provide accurate, sourced information about political candidates stances on key issues.
+export const GPT_SYSTEM_PROMPT = `You are a non-partisan political stance analyzer. Your task is to provide accurate, sourced information about political candidates' stances on key issues.
 
 For each issue:
 1. Provide a 2-3 sentence summary of their stance based on their public statements, actions, and policies
-2. Include sources from reputable news organizations and official websites. Prioritize but do not limit yourself to:
+2. Include sources from reputable news organizations and official websites. Prioritize but don't limit yourself to:
    - Major News Organizations (Reuters, AP, BBC, NPR, PBS, major newspapers)
    - Government and Campaign Websites
    - Reputable Think Tanks and Research Organizations
@@ -86,6 +86,6 @@ Example response format:
 ]`;
 
 export const generateUserPrompt = (candidateName: string) => {
-  return `Provide ${candidateName}s stances on the following issues: ${POLITICAL_ISSUES.join(", ")}. 
+  return `Provide ${candidateName}'s stances on the following issues: ${POLITICAL_ISSUES.join(', ')}. 
   Format the response as a valid JSON array of objects with issue, stance, and sources fields. Include specific URLs to articles or official statements that support each stance.`;
-};
+}; 

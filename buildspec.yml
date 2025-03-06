@@ -21,7 +21,7 @@ phases:
       - echo "Testing Docker push..."
       - docker tag candidstance-app $ECR_REPOSITORY_URI:latest
       - docker push $ECR_REPOSITORY_URI:latest
-      - echo {ImageURI:candidstance-app} > imageDefinitions.json
+      - echo '{"ImageURI":"candidstance-app"}' > imageDefinitions.json
 
 artifacts:
   files:

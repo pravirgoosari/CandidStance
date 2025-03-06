@@ -1,17 +1,17 @@
-import { PoliticalStance } from "@/lib/types";
+import { PoliticalStance } from '@/lib/types';
 
 interface StanceCardProps {
   stance: PoliticalStance;
 }
 
 export function StanceCard({ stance }: StanceCardProps) {
-  const isNoInfo = stance.stance === "No Information Found";
-  const isUnverified = stance.sources.length === 1 && stance.sources[0].title === "We are unable to verify this information";
+  const isNoInfo = stance.stance === 'No Information Found';
+  const isUnverified = stance.sources.length === 1 && stance.sources[0].title === 'We are unable to verify this information';
 
   return (
     <div className="p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
       <h3 className="text-xl font-semibold mb-3 text-gray-800">{stance.issue}</h3>
-      <p className={`mb-4 ${isNoInfo ? "text-gray-500 italic" : "text-gray-600"}`}>
+      <p className={`mb-4 ${isNoInfo ? 'text-gray-500 italic' : 'text-gray-600'}`}>
         {stance.stance}
       </p>
       {!isNoInfo && stance.sources.length > 0 && (
@@ -42,4 +42,4 @@ export function StanceCard({ stance }: StanceCardProps) {
       )}
     </div>
   );
-}
+} 

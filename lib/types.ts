@@ -21,4 +21,4 @@ export interface ApiResponse {
   success: boolean;
   data?: CandidateStances;
   error?: string;
-}
+} 

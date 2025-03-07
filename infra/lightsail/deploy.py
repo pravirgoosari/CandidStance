@@ -19,7 +19,7 @@ with connection() as ssh:
     try:
         run('sudo k3s kubectl -n candidstance rollout status statefulset/postgres --timeout=180s')
         run('sudo k3s kubectl -n candidstance rollout status deployment/candidstance-app --timeout=180s')
-        run("curl -fsS --retry 5 --retry-delay 2 -H 'Host: candidstance.ai' http://127.0.0.1/api/health")
+        run("curl -fsSL --max-time 15 --retry 5 --retry-delay 2 --resolve candidstance.ai:80:127.0.0.1 --resolve candidstance.ai:443:127.0.0.1 http://candidstance.ai/api/health")
     except subprocess.CalledProcessError:
         if previous:
             run('sudo k3s kubectl -n candidstance set image deployment/candidstance-app candidstance-app='+shlex.quote(previous))

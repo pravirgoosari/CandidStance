@@ -1,6 +1,6 @@
 import type React from "react";
 import "./globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Space_Grotesk } from "next/font/google";
 
 const spaceGrotesk = Space_Grotesk({
@@ -13,11 +13,11 @@ export const metadata: Metadata = {
   title: "CandidStance - Discover Political Stances",
   description:
     "Discover candidates' positions on key issues with AI-driven analysis and credible sources",
-  metadataBase: new URL('https://candidstance.app'),
+  metadataBase: new URL('https://candidstance.ai'),
   openGraph: {
     title: "CandidStance - Discover Political Stances",
     description: "Discover candidates' positions on key issues with AI-driven analysis and credible sources",
-    url: "https://candidstance.app",
+    url: "https://candidstance.ai",
     siteName: "CandidStance",
     locale: "en_US",
     type: "website",
@@ -26,11 +26,6 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "CandidStance - Discover Political Stances",
     description: "Discover candidates' positions on key issues with AI-driven analysis and credible sources",
-  },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
   },
   icons: {
     icon: '/favicon.svg',
@@ -41,8 +36,6 @@ export const metadata: Metadata = {
       { rel: 'mask-icon', url: '/favicon.svg', color: '#2864EC' }
     ]
   },
-  manifest: "/manifest.json",
-  themeColor: "#2864EC",
   robots: {
     index: true,
     follow: true,
@@ -54,18 +47,14 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  verification: {
-    google: "your-google-site-verification",
-  },
   alternates: {
-    canonical: "https://candidstance.app",
+    canonical: "https://candidstance.ai",
   },
   authors: [{ name: "Pravir Goosari" }],
   keywords: ["politics", "candidates", "political stances", "policy positions", "elections", "voting"],
   category: "politics",
   classification: "politics",
   referrer: "origin-when-cross-origin",
-  colorScheme: "light",
   creator: "Pravir Goosari",
   publisher: "Pravir Goosari",
   formatDetection: {
@@ -86,6 +75,8 @@ export const metadata: Metadata = {
     "theme-color": "#2864EC",
   },
 };
+
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#2864EC", colorScheme: "light" };
 
 export default function RootLayout({
   children,

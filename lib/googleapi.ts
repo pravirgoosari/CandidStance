@@ -64,7 +64,7 @@ function scoreArticle(article: WebSearchResult, stance: PoliticalStance): number
 
   // Small bonus for reputable sources (reduced from 3 to 1)
   const reputableSources = [
-    'reuters', 'ap', 'bloomberg', 'nytimes', 'wsj', 'washingtonpost', 
+    'reuters', 'ap', 'bloomberg', 'nytimes', 'wsj', 'washingtonpost',
     'bbc', 'npr', 'politico', 'thehill', 'axios', 'cnbc', 'forbes'
   ];
   if (reputableSources.some(s => article.source?.toLowerCase().includes(s))) {
@@ -74,7 +74,7 @@ function scoreArticle(article: WebSearchResult, stance: PoliticalStance): number
   return score;
 }
 
-export async function findRelevantSources(stance: PoliticalStance, maxResults: number = 2): Promise<Source[]> {
+export async function findRelevantSources(stance: PoliticalStance, maxResults: number = 2, attempt: number = 0): Promise<Source[]> {
   try {
     // Check for API key at runtime
     if (!process.env.GOOGLE_API_KEY) {
@@ -87,10 +87,10 @@ export async function findRelevantSources(stance: PoliticalStance, maxResults: n
     console.log(`Starting search for stance: ${stance.issue}`);
     console.log(`Query: ${searchQuery}`);
     console.log('-------------------');
-    
+
     // Add a delay before each API call to respect rate limits
     await delay(1100);
-    
+
     const response = await fetch('https://google-api31.p.rapidapi.com/websearch', {
       method: 'POST',
       headers: {
@@ -104,7 +104,8 @@ export async function findRelevantSources(stance: PoliticalStance, maxResults: n
         timelimit: '',
         region: 'wt-wt',
         max_results: 20
-      })
+      }),
+      signal: AbortSignal.timeout(15000)
     });
 
     if (!response.ok) {
@@ -114,18 +115,20 @@ export async function findRelevantSources(stance: PoliticalStance, maxResults: n
         statusText: response.statusText,
         body: errorText
       });
-      
-      if (response.status === 429) {
+
+      if (response.status === 429 && attempt < 1) {
         console.log('Rate limit hit, waiting 2 seconds and retrying...');
         await delay(2000);
-        return findRelevantSources(stance, maxResults);
+        return findRelevantSources(stance, maxResults, attempt + 1);
       }
-      
-      return [];
+
+      throw new Error(response.status === 429
+        ? 'Source lookup is rate-limited. This summary is unverified; please try again later.'
+        : 'Source lookup is unavailable. This summary is unverified; please try again later.');
     }
 
     const data = await response.json();
-    
+
     if (!data.result || data.result.length === 0) {
       console.log('No results found in Google API response');
       return [];
@@ -189,7 +192,7 @@ export async function findRelevantSources(stance: PoliticalStance, maxResults: n
     return highScoringArticles;
   } catch (error) {
     console.error(`Error fetching articles for stance ${stance.issue}:`, error);
-    return [];
+    throw error;
   }
 }
 
@@ -197,7 +200,7 @@ export async function verifyStanceWithSources(stance: PoliticalStance): Promise<
   try {
     // Do ONE search for this specific stance and keep its results
     const sources = await findRelevantSources(stance);
-    
+
     // Return the stance with ONLY its intended sources
     return {
       ...stance,
@@ -207,7 +210,10 @@ export async function verifyStanceWithSources(stance: PoliticalStance): Promise<
     console.error(`Error finding sources for stance ${stance.issue}:`, error);
     return {
       ...stance,
-      sources: []
+      sources: [],
+      sourceError: error instanceof Error && error.message.startsWith('Source lookup ')
+        ? error.message
+        : 'Source lookup is unavailable. This summary is unverified; please try again later.'
     };
   }
-} 
+}

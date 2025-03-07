@@ -1,0 +1,20 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "codebuild.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole",
+      "Condition": {
+        "StringEquals": {
+          "aws:SourceAccount": "041417444316"
+        },
+        "ArnEquals": {
+          "aws:SourceArn": "arn:aws:codebuild:us-east-1:041417444316:project/candidstance-build"
+        }
+      }
+    }
+  ]
+}

@@ -14,13 +14,13 @@ export function StanceCard({ stance }: StanceCardProps) {
       <p className={`mb-4 ${isNoInfo ? 'text-gray-500 italic' : 'text-gray-600'}`}>
         {stance.stance}
       </p>
-      {!isNoInfo && stance.sources.length > 0 && (
+      {!isNoInfo && (
         <div className="space-y-1">
           <h4 className="text-sm font-medium text-gray-700 mb-2">Sources:</h4>
           <div className="space-y-3">
-            {isUnverified ? (
+            {isUnverified || stance.sources.length === 0 ? (
               <div className="text-red-600 text-sm font-medium">
-                We are unable to verify this information
+                {stance.sourceError || 'No supporting sources were retrieved. This summary is unverified.'}
               </div>
             ) : (
               stance.sources.map((source, index) => (
@@ -42,4 +42,4 @@ export function StanceCard({ stance }: StanceCardProps) {
       )}
     </div>
   );
-} 
+}

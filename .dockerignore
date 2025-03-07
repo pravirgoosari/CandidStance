@@ -1,0 +1,10 @@
+.git
+.env*
+.deploy-private
+node_modules
+.next
+*.pem
+*.key
+*.tsbuildinfo
+.codex
+.agents

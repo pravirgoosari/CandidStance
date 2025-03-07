@@ -1,13 +1,14 @@
-# dependencies
+# Dependencies
 /node_modules
 
-# next.js
+# Next.js
 /.next/
 /out/
 
-# environment files
+# Environment files
 .env
-.env.local
+.env.*
+!.env.example
 
 # IDE
 .vscode/
@@ -21,7 +22,7 @@
 *.key
 *.pem
 
-# AWS Pipeline configuration (environment-specific)
-aws-pipeline/*.env
-aws-pipeline/secrets/
-aws-pipeline/local-config/
+.deploy-private/
+*.tsbuildinfo
+__pycache__/
+.pnpm-store/

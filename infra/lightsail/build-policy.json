@@ -1,0 +1,52 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:us-east-1:041417444316:log-group:/aws/codebuild/candidstance-build:*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:PutImage",
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer"
+      ],
+      "Resource": "arn:aws:ecr:us-east-1:041417444316:repository/candidstance-app"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "codeconnections:GetConnection",
+        "codeconnections:GetConnectionToken",
+        "codeconnections:UseConnection"
+      ],
+      "Resource": "arn:aws:codeconnections:us-east-1:041417444316:connection/e7a57cfe-f5e3-445c-a18e-b519045c3a40"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "lightsail:GetInstanceAccessDetails",
+        "lightsail:GetInstancePortStates",
+        "lightsail:OpenInstancePublicPorts",
+        "lightsail:CloseInstancePublicPorts"
+      ],
+      "Resource": "arn:aws:lightsail:us-east-1:041417444316:Instance/7d9932d6-030e-4d6b-be20-1fec31d6808d"
+    }
+  ]
+}

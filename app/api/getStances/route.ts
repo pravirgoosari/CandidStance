@@ -8,6 +8,12 @@ import { findCandidate, updateCandidate, isStale } from '@/lib/models/candidate-
 export const maxDuration = 120; // 2 minutes
 export const dynamic = 'force-dynamic';
 
+function hasSourcesForCache(stances: PoliticalStance[]): boolean {
+  return stances.length > 0 && stances.every(stance =>
+    stance.stance === 'No Information Found' ||
+    (!stance.sourceError && stance.sources.some(source => /^https?:\/\//.test(source.url)))
+  );
+}
 
 
 function cleanAndParseJSON(jsonString: string): unknown {
@@ -68,7 +74,7 @@ async function processCandidateWithStream(candidateName: string, controller: Rea
     controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'status', message: 'Validating candidate name...' })}\n\n`));
     
     const nameCompletion = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
+      model: "gpt-4o",
       temperature: 0,
       messages: [
         { 
@@ -93,7 +99,7 @@ async function processCandidateWithStream(candidateName: string, controller: Rea
     try {
       const cachedData = await findCandidate(correctedName);
       
-      if (cachedData && !isStale(cachedData.lastUpdated)) {
+      if (cachedData && !isStale(cachedData.lastUpdated) && hasSourcesForCache(cachedData.stances)) {
         // Transform CandidateDocument to CandidateStances format
         const transformedData = {
           inputName: candidateName,
@@ -113,7 +119,7 @@ async function processCandidateWithStream(candidateName: string, controller: Rea
     controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'status', message: 'Generating AI analysis...' })}\n\n`));
     
     const completion = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
+      model: "gpt-4o",
       temperature: 0,
       messages: [
         { role: "system", content: GPT_SYSTEM_PROMPT },
@@ -140,6 +146,7 @@ async function processCandidateWithStream(candidateName: string, controller: Rea
       controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'status', message: `Processing ${gptStances.length} stances...` })}\n\n`));
       
       const stancesWithSources: PoliticalStance[] = [];
+      let sourceError: string | undefined;
       for (let i = 0; i < gptStances.length; i++) {
         const stance = gptStances[i];
         
@@ -151,7 +158,10 @@ async function processCandidateWithStream(candidateName: string, controller: Rea
         }
 
         // Use the Google API to verify and get sources
-        const verifiedStance = await verifyStanceWithSources(stance);
+        const verifiedStance = sourceError
+          ? { ...stance, sources: [], sourceError }
+          : await verifyStanceWithSources(stance);
+        sourceError = verifiedStance.sourceError;
         stancesWithSources.push(verifiedStance);
       }
 
@@ -165,7 +175,7 @@ async function processCandidateWithStream(candidateName: string, controller: Rea
       controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'status', message: 'Saving to database...' })}\n\n`));
       
       try {
-        await updateCandidate(result);
+        if (hasSourcesForCache(result.stances)) await updateCandidate(result);
         controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'status', message: 'Analysis complete!' })}\n\n`));
       } catch (dbError) {
         console.error('Failed to update database:', dbError);
@@ -222,7 +232,7 @@ export async function POST(req: Request) {
     // First, validate and get the correct name
     try {
       const nameCompletion = await openai.chat.completions.create({
-        model: "gpt-4-turbo-preview",
+        model: "gpt-4o",
         temperature: 0,
         messages: [
           { 
@@ -248,7 +258,7 @@ export async function POST(req: Request) {
       try {
         cachedData = await findCandidate(correctedName);
         
-        if (cachedData && !isStale(cachedData.lastUpdated)) {
+        if (cachedData && !isStale(cachedData.lastUpdated) && hasSourcesForCache(cachedData.stances)) {
           return NextResponse.json<ApiResponse>({
             success: true,
             data: {
@@ -263,7 +273,7 @@ export async function POST(req: Request) {
         // Continue without cache if database fails
       }
       const completion = await openai.chat.completions.create({
-        model: "gpt-4-turbo-preview",
+        model: "gpt-4o",
         temperature: 0,
         messages: [
           { role: "system", content: GPT_SYSTEM_PROMPT },
@@ -290,6 +300,7 @@ export async function POST(req: Request) {
 
         // Process stances sequentially to prevent race conditions
         const stancesWithSources: PoliticalStance[] = [];
+        let sourceError: string | undefined;
         for (const stance of gptStances) {
           if (stance.stance === 'No Information Found') {
             stancesWithSources.push({ ...stance, sources: [] });
@@ -297,7 +308,10 @@ export async function POST(req: Request) {
           }
 
           // Use the Google API to verify and get sources one at a time
-          const verifiedStance = await verifyStanceWithSources(stance);
+          const verifiedStance = sourceError
+            ? { ...stance, sources: [], sourceError }
+            : await verifyStanceWithSources(stance);
+          sourceError = verifiedStance.sourceError;
           stancesWithSources.push(verifiedStance);
         }
 
@@ -309,7 +323,7 @@ export async function POST(req: Request) {
 
         // Try to update database, but don't fail if it errors
         try {
-          await updateCandidate(result);
+          if (hasSourcesForCache(result.stances)) await updateCandidate(result);
         } catch (dbError) {
           console.error('Failed to update database:', dbError);
           // Continue without database update

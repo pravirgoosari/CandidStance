@@ -1,13 +1,4 @@
 import { Pool } from 'pg';
-import { config } from 'dotenv';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-
-// Load environment variables from .env.local
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-config({ path: join(__dirname, '..', '.env.local') });
-
 // Lazy initialization - only create pool when first accessed
 let _pool: Pool | null = null;
 
@@ -18,8 +9,8 @@ function getPool(): Pool {
     }
     _pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-      max: 20,
+      ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: true } : false,
+      max: 5,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
     });
@@ -31,7 +22,6 @@ function getPool(): Pool {
 
     _pool.on('error', (err) => {
       console.error('Unexpected error on idle client', err);
-      process.exit(-1);
     });
   }
   return _pool;

@@ -1,0 +1,54 @@
+{
+  "name": "candidstance-build",
+  "description": "GitHub main -> CodeBuild -> ECR -> single-node Lightsail K3s",
+  "source": {
+    "type": "GITHUB",
+    "location": "https://github.com/pravirgoosari/CandidStance.git",
+    "gitCloneDepth": 1,
+    "buildspec": "buildspec.yml",
+    "auth": {
+      "type": "CODECONNECTIONS",
+      "resource": "arn:aws:codeconnections:us-east-1:041417444316:connection/e7a57cfe-f5e3-445c-a18e-b519045c3a40"
+    },
+    "reportBuildStatus": true
+  },
+  "sourceVersion": "main",
+  "artifacts": {
+    "type": "NO_ARTIFACTS"
+  },
+  "environment": {
+    "type": "LINUX_CONTAINER",
+    "image": "aws/codebuild/standard:7.0",
+    "computeType": "BUILD_GENERAL1_SMALL",
+    "privilegedMode": true,
+    "environmentVariables": [
+      {
+        "name": "ECR_REPOSITORY_URI",
+        "value": "041417444316.dkr.ecr.us-east-1.amazonaws.com/candidstance-app",
+        "type": "PLAINTEXT"
+      },
+      {
+        "name": "LIGHTSAIL_INSTANCE",
+        "value": "candidstance-k3s",
+        "type": "PLAINTEXT"
+      }
+    ]
+  },
+  "serviceRole": "arn:aws:iam::041417444316:role/candidstance-lightsail-build-role",
+  "timeoutInMinutes": 20,
+  "queuedTimeoutInMinutes": 30,
+  "concurrentBuildLimit": 1,
+  "autoRetryLimit": 0,
+  "cache": {
+    "type": "NO_CACHE"
+  },
+  "logsConfig": {
+    "cloudWatchLogs": {
+      "status": "ENABLED",
+      "groupName": "/aws/codebuild/candidstance-build"
+    },
+    "s3Logs": {
+      "status": "DISABLED"
+    }
+  }
+}

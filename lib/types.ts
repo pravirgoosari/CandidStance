@@ -8,6 +8,7 @@ export interface PoliticalStance {
   issue: string;
   stance: string;
   sources: Source[];
+  sourceError?: string;
 }
 
 export interface CandidateStances {
@@ -21,4 +22,4 @@ export interface ApiResponse {
   success: boolean;
   data?: CandidateStances;
   error?: string;
-} 
+}

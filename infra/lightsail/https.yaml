@@ -26,7 +26,7 @@ spec:
       - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
       - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
       - --certificatesresolvers.letsencrypt.acme.storage=/data/acme.json
-      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.to=:443
       - --entrypoints.web.http.redirections.entrypoint.scheme=https
 ---
 apiVersion: networking.k8s.io/v1

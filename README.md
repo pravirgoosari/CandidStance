@@ -78,15 +78,15 @@ The application is live at: [https://candidstance.ai](https://candidstance.ai)
 
 ## Environment Variables
 
-- `OPENAI_API_KEY`: OpenAI API key for GPT-4 access
-- `GOOGLE_API_KEY`: Google Custom Search API key
+- `OPENAI_API_KEY`: OpenAI API key for GPT-4o access
+- `GOOGLE_API_KEY`: RapidAPI key for the Google API subscription
 - `DATABASE_URL`: PostgreSQL connection string
 
 ## Deployment
 
 CandidStance targets a single-node K3s cluster on a 2 GB AWS Lightsail server, with PostgreSQL hosted on the same server.
 
-**Status:** Infrastructure is provisioned and the GitHub connection is authorized. The push webhook, first application deployment, DNS confirmation, and HTTPS activation are still pending.
+**Status:** Deployed on September 13, 2026. Pushes to `main` trigger CodeBuild and deploy to Lightsail K3s. DNS and HTTPS are configured for `candidstance.ai` and `www.candidstance.ai`. Application health checks and a database backup restore passed; paid search APIs were not exercised during deployment.
 
 ### CI/CD Pipeline
 
@@ -102,7 +102,7 @@ CandidStance targets a single-node K3s cluster on a 2 GB AWS Lightsail server, w
 - **Container Orchestration**: Single-node K3s (Kubernetes)
 - **Container Registry**: Amazon ECR
 - **Ingress**: Traefik routes traffic to the application
-- **HTTPS**: Let's Encrypt certificates through Traefik, pending activation
+- **HTTPS**: Let's Encrypt certificates through Traefik with persistent certificate storage
 - **Database**: PostgreSQL 17 with persistent local storage
 - **Networking**: Public HTTP/HTTPS; database and Kubernetes API ports remain private
 - **Domain**: `candidstance.ai`, with DNS managed through Spaceship
@@ -121,7 +121,6 @@ CandidStance targets a single-node K3s cluster on a 2 GB AWS Lightsail server, w
 - `infra/lightsail/k8s.yaml` — Application, database, storage, and ingress manifests
 - `infra/lightsail/https.yaml` — Traefik HTTPS configuration
 - `infra/lightsail/deploy.py` — Deployment helper
-- `infra/lightsail/README.md` — Deployment and operations runbook
 
 ### Monitoring and Backups
 

@@ -1,5 +1,5 @@
 import { Evidence } from './evidence';
-import { extractText, readBounded } from './googleapi';
+import { extractText, readBounded } from './articles';
 
 const TOPICS: Record<string, RegExp> = {
   'Economy & Taxes': /tax|economic|trade|tariff/i,

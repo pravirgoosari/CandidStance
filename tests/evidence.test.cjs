@@ -5,7 +5,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { validateDraft, finalize, fresh, missing, ISSUES } = require('../lib/evidence.ts');
 const { research } = require('../lib/research.ts');
-const { sourceUrl, searchEvidence, readArticle } = require('../lib/googleapi.ts');
+const { sourceUrl, readArticle } = require('../lib/articles.ts');
 const quote = 'In 2024, Example Candidate proposed reducing corporate taxes.';
 const evidence = [{ id: 'S1', text: Array(6).fill(quote).join(' '), title: 'Tax policy', url: 'https://apnews.com/article/tax', source: 'apnews.com', evidenceType: 'article' }];
 const draft = { issues: [{ issue: ISSUES[0], claims: [{ text: 'In 2024, the candidate proposed a corporate tax reduction.', citations: [{ id: 'S1', quote }] }] }] };
@@ -59,13 +59,6 @@ test('unsafe URLs and redirects are not fetched', async () => {
   let calls = 0;
   const result = await readArticle(evidence[0], async () => { calls++; return new Response('', { status: 302, headers: { location: 'http://169.254.169.254/' } }); });
   assert.equal(calls, 1); assert.equal(result, evidence[0]);
-});
-test('search accepts actual provider shape, deduplicates and caps three results', async () => {
-  const result = await searchEvidence('Example Candidate', 'tax policy', async (_, options) => {
-    assert.ok(JSON.parse(options.body).text.length < 100);
-    return Response.json({ result: [1,2,3,4].map(i => ({ title:'Title',href:`https://apnews.com/article/${i}`,body:quote })) });
-  });
-  assert.equal(result.length, 3);
 });
 test('failed semantic review never returns a model-written unsupported stance', async () => {
   let saved; let calls=0;

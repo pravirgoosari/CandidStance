@@ -148,4 +148,4 @@ Created by Pravir Goosari
 
 ## Search costs
 
-The active path uses GPT-4o with `web_search_preview`, not the retired RapidAPI search path. At the published $25 per 1,000 preview tool calls, four search calls cost $0.10 plus model input/output charges. Cached repeats use neither paid API. This is a usage estimate, not a hard monthly cap. See [OpenAI pricing](https://developers.openai.com/api/docs/pricing).
+Source discovery uses GPT-4o with `web_search_preview` and requires only the OpenAI API key. At the published $25 per 1,000 preview tool calls, four search calls cost $0.10 plus model input/output charges. Cached repeats use neither paid API. This is a usage estimate, not a hard monthly cap. See [OpenAI pricing](https://developers.openai.com/api/docs/pricing).

@@ -1,5 +1,5 @@
 import { openai } from './openai';
-import { sourceUrl } from './googleapi';
+import { sourceUrl } from './articles';
 import type { Evidence } from './evidence';
 
 // Discover URLs using the search tool's citation annotations, never generated links.

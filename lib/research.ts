@@ -1,7 +1,7 @@
 import { openai } from './openai';
 import { findCandidate, saveAlias, updateCandidate } from './models/candidate-postgresql';
 import { Evidence, ISSUES, fresh, missing, validateDraft, finalize, normalizeName, unavailable, passages, selectedClaims } from './evidence';
-import { readArticle } from './googleapi';
+import { readArticle } from './articles';
 import { discoverSources } from './websearch';
 import { referenceEvidence } from './reference';
 import type { CandidateStances } from './types';

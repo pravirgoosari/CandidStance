@@ -26,24 +26,6 @@ export async function readBounded(response: Response, limit: number): Promise<st
     return Buffer.concat(chunks).toString('utf8');
   } finally { await reader.cancel().catch(() => {}); }
 }
-export async function searchEvidence(candidate: string, terms: string, fetcher = fetch): Promise<Evidence[]> {
-  const response = await fetcher('https://google-api31.p.rapidapi.com/websearch', {
-    method: 'POST', headers: { 'x-rapidapi-key': process.env.GOOGLE_API_KEY || '', 'x-rapidapi-host': 'google-api31.p.rapidapi.com', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: `"${candidate}" ${terms}`, safesearch: 'off', timelimit: '', region: 'wt-wt', max_results: 10 }),
-    signal: AbortSignal.timeout(30000)
-  });
-  if (!response.ok) { await response.body?.cancel(); throw new Error(response.status === 429 ? 'Source provider quota or rate limit reached.' : `Source provider returned HTTP ${response.status}.`); }
-  const data = JSON.parse(await readBounded(response, 256000));
-  if (!Array.isArray(data.result)) throw new Error('Source provider returned an unexpected format.');
-  const results: Evidence[] = []; const urls = new Set<string>();
-  for (const row of data.result) {
-    const u = sourceUrl(row?.href);
-    const text = typeof row?.body === 'string' ? normalizeText(row.body) : typeof row?.description === 'string' ? normalizeText(row.description) : '';
-    if (!u || urls.has(u.href) || typeof row.title !== 'string' || text.length < 40) continue;
-    urls.add(u.href); results.push({ id: '', url: u.href, title: row.title.slice(0, 250), source: u.hostname, text: text.slice(0, 1600), evidenceType: 'search-excerpt' });
-  }
-  return results.slice(0, 3);
-}
 export async function readArticle(evidence: Evidence, fetcher = fetch): Promise<Evidence> {
   try {
     // Only known publisher hosts, no arbitrary URLs or automatic redirects.
@@ -66,6 +48,6 @@ export async function readArticle(evidence: Evidence, fetcher = fetch): Promise<
       if (text.length < 250 || /verify you are human|access denied|enable javascript/i.test(text)) return evidence;
       return { ...evidence, text, evidenceType: 'article' };
     }
-  } catch { /* Keep the explicitly labeled search excerpt when a page is inaccessible. */ }
+  } catch { /* Inaccessible pages are excluded by the research pipeline. */ }
   return evidence;
 }

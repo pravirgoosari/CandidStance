@@ -1,15 +1,15 @@
 # CandidStance
 
-CandidStance explores U.S. politicians’ positions using retrieved evidence and GPT-4o summaries. Claims include citations and supporting excerpts; AI review is not independent fact-checking.
+CandidStance explores U.S. politicians’ positions using retrieved evidence and GPT-4o-selected source passages. Claims include citations and supporting excerpts; AI review is not independent fact-checking.
 
 ## Features
 
 ### Core Features
-- **Evidence first**: Up to four short source searches, followed by bounded article retrieval.
-- **Cited claims**: Every displayed claim must cite retrieved evidence, include a matching quotation, and pass a separate AI support check.
+- **Evidence first**: Up to four GPT-4o web-search discovery requests, followed by bounded article retrieval. Only search-tool citation URLs are used; model-written search prose is not evidence.
+- **Cited passages**: GPT-4o selects relevant retrieved passages; the app displays the original text with publisher attribution. A separate relevance check rejects off-topic selections. The model cannot write the displayed passage or invent its URL.
 - **Three sources maximum**: Each issue card shows at most three sources with full clickable URLs and expandable supporting excerpts.
-- **Transparent gaps**: Insufficient evidence is shown explicitly. Search-excerpt-only sources are labeled.
-- **Caching**: Supported issues are cached for 30 days; gaps for 24 hours. Expired gaps are retried on the next search without regenerating still-fresh supported issues.
+- **Transparent gaps**: Insufficient evidence is shown explicitly. Pages that cannot be retrieved are not used to support claims. Provider outages are shown separately from insufficient evidence.
+- **Caching**: Supported issues are cached for 30 days; evidence gaps for 24 hours; temporary provider failures for 15 minutes. Expired gaps are retried on the next search without regenerating still-fresh supported issues.
 - **Name cache**: Previously resolved names use PostgreSQL aliases before any OpenAI call.
 - **Bounded usage**: One research job at a time per app process, no automatic API retries, and no paid research when the database is unavailable.
 
@@ -34,7 +34,7 @@ Comprehensive coverage of major political issues including:
 - **Styling**: Tailwind CSS
 - **Database**: PostgreSQL 17 running on K3s with persistent storage
 - **AI Integration**: OpenAI GPT-4o
-- **Search**: Google API via RapidAPI
+- **Search**: GPT-4o web search through the OpenAI Responses API
 - **Hosting**: AWS Lightsail with single-node K3s (Kubernetes)
 - **CI/CD**: GitHub → AWS CodeBuild → Amazon ECR → K3s
 - **Container**: Docker (linux/amd64)
@@ -42,7 +42,7 @@ Comprehensive coverage of major political issues including:
 
 ## Research limitations
 
-Searches cover grouped topics to limit API costs and may miss relevant evidence. Article retrieval is restricted to configured news/government domains; inaccessible pages fall back to clearly labeled search excerpts. The system does not establish that a politician has no position when evidence is missing. Historical statements must retain their time context. AI support checks reduce unsupported claims but are not a guarantee of accuracy.
+Searches cover grouped topics to limit API costs and may miss relevant evidence. Article retrieval is restricted to configured news/government domains, with a clearly labeled Wikipedia political-positions reference fallback; inaccessible pages are excluded from the evidence used to write summaries. The system does not establish that a politician has no position when evidence is missing. Historical statements must retain their time context. AI relevance checks are not a guarantee of accuracy. Quoted government statements and Wikipedia references are attributed to their publishers, not independently verified.
 
 Legacy summaries are excluded from the new evidence cache. The database schema in `lib/database/schema.sql` is applied by deployment before the application update. New local databases must also load this schema. Use `pnpm test` for mocked citation, cache, and retrieval tests without API calls.
 
@@ -62,7 +62,6 @@ Legacy summaries are excluded from the new evidence cache. The database schema i
 3. Set up environment variables:
    ```bash
    OPENAI_API_KEY=your_openai_api_key
-   GOOGLE_API_KEY=your_google_api_key
    DATABASE_URL=your_postgresql_connection_string
    ```
 
@@ -80,7 +79,6 @@ The application is live at: [https://candidstance.ai](https://candidstance.ai)
 ## Environment Variables
 
 - `OPENAI_API_KEY`: OpenAI API key for GPT-4o access
-- `GOOGLE_API_KEY`: RapidAPI key for the Google API subscription
 - `DATABASE_URL`: PostgreSQL connection string
 
 ## Deployment
@@ -144,6 +142,10 @@ Created by Pravir Goosari
 
 - Next.js team
 - OpenAI for GPT-4o API
-- RapidAPI for source search
+- OpenAI for web search
 - AWS for cloud services
 - Kubernetes for container orchestration
+
+## Search costs
+
+The active path uses GPT-4o with `web_search_preview`, not the retired RapidAPI search path. At the published $25 per 1,000 preview tool calls, four search calls cost $0.10 plus model input/output charges. Cached repeats use neither paid API. This is a usage estimate, not a hard monthly cap. See [OpenAI pricing](https://developers.openai.com/api/docs/pricing).

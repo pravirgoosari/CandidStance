@@ -11,6 +11,7 @@ export interface PoliticalStance {
   sources: Source[];
   sourceError?: string;
   evidenceVersion?: number;
+  evidenceStatus?: 'supported' | 'insufficient' | 'unavailable';
   checkedAt?: string;
   claims?: { text: string; citations: { sourceIndex: number; quote: string }[] }[];
 }
@@ -21,6 +22,7 @@ export interface CandidateStances {
   stances: PoliticalStance[];
   error?: string;
   cached?: boolean;
+  warning?: string;
 }
 
 export interface ApiResponse {

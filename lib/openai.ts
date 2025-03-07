@@ -19,6 +19,7 @@ function getOpenAI(): OpenAI {
 
 // Export a getter that creates the instance only when accessed
 export const openai = {
+  get responses() { return getOpenAI().responses; },
   get chat() {
     return getOpenAI().chat;
   },

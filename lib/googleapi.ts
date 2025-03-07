@@ -1,6 +1,6 @@
 import { Evidence, normalizeText } from './evidence';
 
-const DOMAINS = ['reuters.com', 'apnews.com', 'bbc.com', 'bbc.co.uk', 'npr.org', 'pbs.org', 'politico.com', 'axios.com', 'thehill.com', 'cnbc.com', 'foxnews.com', 'cnn.com', 'nytimes.com', 'washingtonpost.com', 'wsj.com', 'whitehouse.gov', 'congress.gov', 'senate.gov', 'house.gov', 'presidency.ucsb.edu', 'c-span.org'];
+const DOMAINS = ['reuters.com', 'apnews.com', 'bbc.com', 'bbc.co.uk', 'npr.org', 'pbs.org', 'politico.com', 'axios.com', 'thehill.com', 'cnbc.com', 'foxnews.com', 'cnn.com', 'nytimes.com', 'washingtonpost.com', 'wsj.com', 'whitehouse.gov', 'congress.gov', 'senate.gov', 'house.gov', 'presidency.ucsb.edu', 'c-span.org', 'treasury.gov', 'hhs.gov', 'epa.gov', 'ed.gov', 'dhs.gov', 'state.gov', 'justice.gov', 'federalregister.gov', 'govinfo.gov'];
 export function sourceUrl(value: unknown): URL | null {
   if (typeof value !== 'string') return null;
   try {
@@ -16,7 +16,7 @@ export function extractText(html: string): string {
     .replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"')
     .replace(/&#(?:39|x27);/gi, "'").replace(/&(?:lsquo|rsquo);/g, "'").replace(/&(?:ldquo|rdquo);/g, '"'));
 }
-async function readBounded(response: Response, limit: number): Promise<string> {
+export async function readBounded(response: Response, limit: number): Promise<string> {
   const reader = response.body?.getReader();
   if (!reader) return '';
   const chunks: Uint8Array[] = []; let size = 0;
@@ -59,7 +59,7 @@ export async function readArticle(evidence: Evidence, fetcher = fetch): Promise<
         continue;
       }
       if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) { await response.body?.cancel(); return evidence; }
-      const html = await readBounded(response, 750000);
+      const html = await readBounded(response, 1500000);
       const main = html.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i)?.[1] || html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i)?.[1];
       if (!main) return evidence;
       const text = extractText(main).slice(0, 6500);

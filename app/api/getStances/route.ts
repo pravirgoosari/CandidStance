@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   const name = body?.candidateName;
   if (typeof name !== 'string' || !/^[\p{L} .’\u0027-]{2,100}$/u.test(name.trim()))
     return NextResponse.json({ error: 'Enter a politician’s name (2–100 characters).' }, { status: 400 });
-  const errorMessage = (e: unknown) => e instanceof Error && /Please enter|Another search/.test(e.message)
+  const errorMessage = (e: unknown) => e instanceof Error && /Please enter|Another search|Sources are temporarily/.test(e.message)
     ? e.message : 'Research could not be completed or saved. Please try again later.';
   if (!body.stream) {
     try { return NextResponse.json({ success: true, data: await runResearch(name.trim(), () => {}) }); }

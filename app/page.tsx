@@ -163,8 +163,9 @@ export default function Home() {
               Stances for {results.candidateName}
             </h2>
             <p className="text-center text-sm text-gray-500 mb-6">
-              {results.cached ? 'Showing saved research. ' : ''}Summaries are limited to retrieved evidence and reviewed by AI, not independently fact-checked. Gaps do not mean a candidate has no position.
+              {results.cached ? 'Showing saved research. ' : ''}Source passages are selected and reviewed for relevance by AI, not independently fact-checked. Gaps do not mean a candidate has no position.
             </p>
+            {results.warning && <p role="status" className="text-center text-amber-800 mb-4">{results.warning}</p>}
             {results.stances && Array.isArray(results.stances) ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {results.stances.map((stance, index) => (

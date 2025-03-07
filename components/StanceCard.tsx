@@ -24,15 +24,10 @@ export function StanceCard({ stance }: { stance: PoliticalStance }) {
           <div key={source.url} className="text-sm">
             <p className="font-medium text-gray-700">[{index + 1}] {source.title}</p>
             <a href={source.url} target="_blank" rel="noopener noreferrer" className="block break-all text-blue-700 hover:underline">{source.url}</a>
-            <p className="text-xs text-gray-500 mt-1">{source.source === 'en.wikipedia.org' ? 'Wikipedia reference · ' : source.source.endsWith('.gov') ? 'Government source · ' : ''}{source.evidenceType === 'article' ? 'Retrieved article text' : 'Search excerpt only — full article not retrieved'}</p>
-            <details className="mt-1 text-xs text-gray-600">
-              <summary className="cursor-pointer">Supporting excerpts</summary>
-              {[...new Set(claims.flatMap(c => c.citations.filter(ref => ref.sourceIndex === index).map(ref => ref.quote)))].map(quote => <blockquote key={quote} className="mt-2 border-l-2 pl-2">“{quote}”</blockquote>)}
-            </details>
           </div>
         ))}
       </div>}
-      {stance.checkedAt && <p className="text-xs text-gray-500 mt-4">Evidence checked {stance.checkedAt.slice(0, 10)}. Positions may have changed.</p>}
+      {stance.checkedAt && <p className="text-xs text-gray-500 mt-4">Researched {stance.checkedAt.slice(0, 10)}. Positions may have changed.</p>}
     </article>
   );
 }

@@ -3,105 +3,84 @@ const ts = require('typescript');
 require.extensions['.ts'] = (module, file) => module._compile(ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText, file);
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { validateDraft, finalize, fresh, missing, ISSUES } = require('../lib/evidence.ts');
+const { fresh, missing, unavailable, ISSUES, EVIDENCE_VERSION } = require('../lib/evidence.ts');
 const { research } = require('../lib/research.ts');
-const { sourceUrl, readArticle } = require('../lib/articles.ts');
-const quote = 'In 2024, Example Candidate proposed reducing corporate taxes.';
-const evidence = [{ id: 'S1', text: Array(6).fill(quote).join(' '), title: 'Tax policy', url: 'https://apnews.com/article/tax', source: 'apnews.com', evidenceType: 'article' }];
-const draft = { issues: [{ issue: ISSUES[0], claims: [{ text: 'In 2024, the candidate proposed a corporate tax reduction.', citations: [{ id: 'S1', quote }] }] }] };
-
-test('rejects invented source IDs, altered quotes and more than three sources', () => {
-  const raw = structuredClone(draft); raw.issues[0].claims[0].citations[0].id = 'FAKE';
-  assert.equal(validateDraft(raw, evidence, [ISSUES[0]])[0].claims.length, 0);
-  raw.issues[0].claims[0].citations[0] = { id: 'S1', quote: 'The tax cut was enacted into law.' };
-  assert.equal(validateDraft(raw, evidence, [ISSUES[0]])[0].claims.length, 0);
-  const four = [1,2,3,4].map(i => ({ ...evidence[0], id: 'S'+i, url: 'https://apnews.com/article/'+i }));
-  raw.issues[0].claims[0].citations = four.map(e => ({ id: e.id, quote }));
-  assert.equal(validateDraft(raw, four, [ISSUES[0]])[0].claims.length, 0);
+const { sourceUrl } = require('../lib/sources.ts');
+const { citedSummary } = require('../lib/websearch.ts');
+function output(rows) {
+  let text=''; const annotations=[];
+  for(const [summary,url] of rows) {
+    text+=summary+' ';
+    if(url) {const marker=`([source](${url}))`;annotations.push({type:'url_citation',url,title:'Policy reporting',start_index:text.length,end_index:text.length+marker.length});text+=marker;}
+    text+='\n\n';
+  }
+  return [{type:'message',content:[{type:'output_text',text,annotations}]}];
+}
+const sentence='The candidate supports lowering corporate taxes while maintaining existing personal tax rates.';
+const supported = issue => citedSummary(output([[sentence,'https://apnews.com/article/taxes']]),issue);
+test('renders an AI summary with provider citations instead of copied excerpts',()=>{
+ const s=supported(ISSUES[0]);assert.equal(s.stance,sentence);assert.equal(s.claims[0].citations[0].sourceIndex,0);assert.equal(s.sources.length,1);
 });
-test('requires reviewer approval and maps citations to retrieved URLs', () => {
-  const drafts = validateDraft(draft, evidence, [ISSUES[0]]);
-  assert.equal(finalize(drafts, evidence, { approvals: [] })[0].claims.length, 0);
-  const result = finalize(drafts, evidence, { approvals: [{ issue: ISSUES[0], claimIndex: 0, supported: true }] })[0];
-  assert.equal(result.sources[0].url, evidence[0].url);
-  assert.equal(result.claims[0].citations[0].sourceIndex, 0);
+test('excludes Wikipedia, spoofed hosts, unsafe URLs and uncited model links',()=>{
+ for(const url of ['https://en.wikipedia.org/wiki/Trump','https://apnews.com.evil.test/x','http://apnews.com/x','https://user@apnews.com/x','https://127.0.0.1/','https://apnews.com:8443/x']) assert.equal(sourceUrl(url),null);
+ assert.throws(()=>citedSummary(output([[sentence,'https://en.wikipedia.org/wiki/Trump']]),ISSUES[0]));
+ assert.throws(()=>citedSummary(output([[sentence+' https://apnews.com/invented',null]]),ISSUES[0]));
 });
-test('partial cache lasts 24 hours, supported cache 30 days, legacy is rejected', () => {
-  const partial = missing(ISSUES[0]); const now = Date.parse(partial.checkedAt);
-  assert.equal(fresh(partial, now + 23*3600000), true);
-  assert.equal(fresh(partial, now + 25*3600000), false);
-  assert.equal(fresh({ ...partial, claims: [{}] }, now + 29*86400000), true);
-  assert.equal(fresh({ ...partial, claims: [{}] }, now + 31*86400000), false);
-  assert.equal(fresh({ ...partial, evidenceVersion: undefined }), false);
+test('discards an entire paragraph with excluded evidence, preserves supported paragraphs',()=>{
+ const o=output([[sentence,'https://apnews.com/a'],['An unsupported assertion without a citation.',null],[sentence,'https://en.wikipedia.org/wiki/X']]);
+ const s=citedSummary(o,ISSUES[0]);assert.equal(s.claims.length,1);assert.equal(s.sources.length,1);
 });
-test('cached alias bypasses every paid API, including name recognition', async () => {
-  let calls = 0;
-  const result = await research('example', () => {}, {
-    find: async () => ({ name: 'Example Candidate', stances: ISSUES.map(i => missing(i)) }),
-    alias: async () => {}, save: async () => {}, json: async () => { calls++; throw Error(); }, search: async () => { calls++; throw Error(); }, read: async e => e
-  });
-  assert.equal(result.cached, true); assert.equal(calls, 0);
+test('limits to three sources without keeping claims whose references were dropped',()=>{
+ const s=citedSummary(output([1,2,3,4].map(i=>[sentence+' '+i,'https://apnews.com/'+i])),ISSUES[0]);
+ assert.equal(s.sources.length,3);assert.equal(s.claims.length,3);assert.ok(!s.stance.endsWith('4'));
 });
-test('provider failure is saved and repeated search does not retry', async () => {
-  let saved; let searches=0; let gpt=0;
-  const deps = { find: async () => saved ? { name: saved.candidateName, stances: saved.stances } : null,
-    alias: async () => {}, save: async r => { saved = r; }, json: async () => { gpt++; return { name: 'Example Candidate' }; },
-    search: async () => { searches++; throw Error('quota'); }, read: async e => e };
-  await assert.rejects(research('example', () => {}, deps), /temporarily unavailable/);
-  await assert.rejects(research('example', () => {}, deps), /temporarily unavailable/);
-  assert.equal(searches, 1); assert.equal(gpt, 1); assert.equal(saved.stances.length, 12);
+test('deduplicates citation URLs and strips tracking parameters',()=>{
+ const s=citedSummary(output([[sentence,'https://apnews.com/a?utm_source=openai'],[sentence,'https://apnews.com/a']]),ISSUES[0]);
+ assert.equal(s.sources.length,1);assert.equal(s.sources[0].url,'https://apnews.com/a');assert.equal(s.claims[1].citations[0].sourceIndex,0);
 });
-test('cache outage stops before paid calls', async () => {
-  await assert.rejects(research('example', () => {}, { find: async () => { throw Error('db down'); }, json: async () => assert.fail('paid call') }));
+test('rejects invalid annotation offsets',()=>{
+ const o=output([[sentence,'https://apnews.com/a']]);o[0].content[0].annotations[0].end_index=99999;assert.throws(()=>citedSummary(o,ISSUES[0]));
 });
-test('unsafe URLs and redirects are not fetched', async () => {
-  for (const u of ['http://apnews.com/x','https://apnews.com.evil.test/x','https://127.0.0.1/x','https://apnews.com:8443/x','https://user@apnews.com/x']) assert.equal(sourceUrl(u), null);
-  let calls = 0;
-  const result = await readArticle(evidence[0], async () => { calls++; return new Response('', { status: 302, headers: { location: 'http://169.254.169.254/' } }); });
-  assert.equal(calls, 1); assert.equal(result, evidence[0]);
+test('supported cache lasts 30 days, temporary failures 15 minutes, old quote cards expire',()=>{
+ const s=supported(ISSUES[0]),now=Date.parse(s.checkedAt);
+ assert.equal(fresh(s,now+29*86400000),true);assert.equal(fresh(s,now+31*86400000),false);
+ assert.equal(fresh({...s,evidenceVersion:EVIDENCE_VERSION-1},now),false);
+ const u=unavailable(ISSUES[0]),time=Date.parse(u.checkedAt);assert.equal(fresh(u,time+14*60000),true);assert.equal(fresh(u,time+16*60000),false);
 });
-test('failed semantic review never returns a model-written unsupported stance', async () => {
-  let saved; let calls=0;
-  await research('Example Candidate', () => {}, { find: async () => ({ name:'Example Candidate', stances:[] }), alias:async()=>{}, save:async r=>{saved=r},
-    search:async()=>evidence, read:async e=>e, json:async()=>++calls===1?{issues:[{issue:ISSUES[0],passageIds:['S1P0']}]}:{approvals:[]} });
-  assert.equal(saved.stances.every(s=>s.claims.length===0),true);
+test('cached alias bypasses all paid calls',async()=>{
+ const result=await research('trump',()=>{},{find:async()=>({name:'Donald Trump',stances:ISSUES.map(supported)}),alias:async()=>{},json:async()=>assert.fail('paid resolution'),search:async()=>assert.fail('paid search')});assert.equal(result.cached,true);
 });
-test('refreshes expired gaps without regenerating fresh supported issues', async () => {
-  const cached = ISSUES.map(i => missing(i));
-  cached[0] = finalize(validateDraft(draft, evidence, [ISSUES[0]]), evidence, { approvals: [{ issue:ISSUES[0],claimIndex:0,supported:true }] })[0];
-  cached[1].checkedAt = new Date(Date.now()-2*86400000).toISOString();
-  let searches=0; let saved;
-  await research('example',()=>{}, { find:async()=>({name:'Example Candidate',stances:cached}),alias:async()=>{},save:async r=>{saved=r},
-    search:async()=>{searches++;return []},read:async e=>e,json:async()=>assert.fail('No model call without evidence') });
-  assert.equal(searches,1); assert.deepEqual(saved.stances[0],cached[0]); assert.ok(fresh(saved.stances[1]));
+test('one topic failure does not block research on other topics and is cached',async()=>{
+ let saved,calls=0;const deps={find:async()=>({name:'Donald Trump',stances:saved?.stances||[]}),alias:async()=>{},save:async r=>{saved=r},search:async(name,issue)=>{calls++;if(issue===ISSUES[0])throw Error('timeout');return supported(issue)}};
+ const result=await research('trump',()=>{},deps);assert.equal(result.stances.filter(s=>s.evidenceStatus==='supported').length,11);assert.equal(calls,12);
+ await research('trump',()=>{},deps);assert.equal(calls,12);
 });
-test('cards show full clickable URLs and cap displayed sources at three', () => {
-  require.extensions['.tsx'] = (module,file) => module._compile(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText,file);
-  const React = require('react'); const {renderToStaticMarkup} = require('react-dom/server');
-  const {StanceCard} = require('../components/StanceCard.tsx');
-  const stance=finalize(validateDraft(draft,evidence,[ISSUES[0]]),evidence,{approvals:[{issue:ISSUES[0],claimIndex:0,supported:true}]})[0];
-  stance.sources=[1,2,3,4].map(i=>({...evidence[0],url:`https://apnews.com/article/${i}`,evidenceType:'search-excerpt'}));
-  const html=renderToStaticMarkup(React.createElement(StanceCard,{stance}));
-  for (const i of [1,2,3]) assert.ok(html.includes(`>https://apnews.com/article/${i}</a>`));
-  assert.ok(!html.includes('https://apnews.com/article/4'));
-  assert.ok(html.includes('Search excerpt only'));
+test('quota failure stops remaining paid calls and repeated requests',async()=>{
+ let saved,calls=0;const deps={find:async()=>({name:'Donald Trump',stances:saved?.stances||[]}),alias:async()=>{},save:async r=>{saved=r},search:async()=>{calls++;throw Object.assign(Error('quota'),{status:429})}};
+ await assert.rejects(research('trump',()=>{},deps),/temporarily unavailable/);await assert.rejects(research('trump',()=>{},deps),/temporarily unavailable/);assert.equal(calls,1);
 });
-test('search-generated prose is never treated as evidence', () => {
-  const {citationSources}=require('../lib/websearch.ts');
-  const sources=citationSources([{type:'message',content:[{text:'Invented story https://apnews.com/invented',annotations:[{type:'url_citation',url:'https://www.whitehouse.gov/test',title:'Official document'}]}]}]);
-  assert.equal(sources.length,1);assert.equal(sources[0].text,'');assert.equal(sources[0].url,'https://www.whitehouse.gov/test');
+test('cache outage prevents paid research',async()=>{
+ await assert.rejects(research('trump',()=>{},{find:async()=>{throw Error('db down')},search:async()=>assert.fail('paid call')}));
 });
-test('provider outages expire after 15 minutes and old failure caches are invalid',()=>{
-  const {unavailable}=require('../lib/evidence.ts');const s=unavailable(ISSUES[0]);const time=Date.parse(s.checkedAt);
-  assert.equal(fresh(s,time+14*60000),true);assert.equal(fresh(s,time+16*60000),false);
-  assert.equal(fresh({...s,evidenceVersion:2},time),false);
+test('only expired issues are refreshed',async()=>{
+ const stances=ISSUES.map(supported);stances[0].checkedAt=new Date(Date.now()-31*86400000).toISOString();let calls=0;
+ await research('trump',()=>{},{find:async()=>({name:'Donald Trump',stances}),alias:async()=>{},save:async()=>{},search:async(name,issue)=>{calls++;assert.equal(issue,ISSUES[0]);return supported(issue)}});assert.equal(calls,1);
 });
-test('selected claims use exact retrieved text, never model prose',()=>{
-  const {passages,selectedClaims}=require('../lib/evidence.ts');const p=passages(evidence);
-  const rows=selectedClaims({issues:[{issue:ISSUES[0],passageIds:[p[0].id,'invented'],text:'Made up policy'}]},p,[ISSUES[0]]);
-  assert.equal(rows[0].claims.length,1);assert.ok(rows[0].claims[0].text.includes(p[0].text));assert.ok(!rows[0].claims[0].text.includes('Made up'));
+test('card puts summary before up to three full clickable source URLs',()=>{
+ require.extensions['.tsx']=(m,f)=>m._compile(ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText,f);
+ const React=require('react'),{renderToStaticMarkup}=require('react-dom/server'),{StanceCard}=require('../components/StanceCard.tsx');
+ const stance=supported(ISSUES[0]);stance.sources=[1,2,3,4].map(i=>({...stance.sources[0],url:'https://apnews.com/'+i}));
+ const html=renderToStaticMarkup(React.createElement(StanceCard,{stance}));
+ assert.ok(html.indexOf(sentence)<html.indexOf('>Sources<'));for(const i of [1,2,3])assert.ok(html.includes('>https://apnews.com/'+i+'</a>'));assert.ok(!html.includes('https://apnews.com/4'));assert.ok(!html.includes('Supporting excerpts'));
 });
-test('evidence payload is bounded and preserves source diversity',()=>{
-  const {passages}=require('../lib/evidence.ts');const many=Array.from({length:30},(_,i)=>({...evidence[0],id:'S'+i,text:Array(20).fill('This is a long policy statement about a candidate and a specific issue that has enough context for source review.').join(' ')}));
-  const p=passages(many);assert.ok(p.length<=120);assert.ok(p.reduce((n,e)=>n+e.text.length,0)<=22000);assert.equal(new Set(p.map(e=>e.id.split('P')[0])).size,30);
+test('search Highlights and published-date fragments never enter summaries',()=>{
+ const o=output([[sentence,'https://apnews.com/a']]);o[0].content[0].text+='## Highlights:\n';
+ const extra=output([['More news headline, Published on Tuesday','https://apnews.com/b']])[0].content[0];const offset=o[0].content[0].text.length;o[0].content[0].text+=extra.text;o[0].content[0].annotations.push(...extra.annotations.map(a=>({...a,start_index:a.start_index+offset,end_index:a.end_index+offset})));
+ const s=citedSummary(o,ISSUES[0]);assert.equal(s.claims.length,1);assert.equal(s.sources.length,1);
+});
+test('synthesis preserves citation mapping and rejects invented source references',()=>{
+ const {validatedSynthesis}=require('../lib/websearch.ts');const e=citedSummary(output([[sentence,'https://apnews.com/a'],[sentence,'https://www.reuters.com/b']]),ISSUES[0]);
+ const s=validatedSynthesis({claims:[{text:sentence,sourceIndices:[1]},{text:sentence,sourceIndices:[0,1]}]},e);
+ assert.equal(s.sources[0].url,'https://www.reuters.com/b');assert.deepEqual(s.claims[1].citations,[{sourceIndex:1},{sourceIndex:0}]);
+ assert.throws(()=>validatedSynthesis({claims:[{text:sentence,sourceIndices:[9]}]},e));assert.throws(()=>validatedSynthesis({claims:[{text:sentence,sourceIndices:[]}]},e));
 });

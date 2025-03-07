@@ -2,7 +2,7 @@ export interface Source {
   url: string;
   title: string;
   source: string;
-  evidenceType?: 'article' | 'search-excerpt';
+  evidenceType?: 'web-search';
 }
 
 export interface PoliticalStance {
@@ -13,7 +13,7 @@ export interface PoliticalStance {
   evidenceVersion?: number;
   evidenceStatus?: 'supported' | 'insufficient' | 'unavailable';
   checkedAt?: string;
-  claims?: { text: string; citations: { sourceIndex: number; quote: string }[] }[];
+  claims?: { text: string; citations: { sourceIndex: number }[] }[];
 }
 
 export interface CandidateStances {

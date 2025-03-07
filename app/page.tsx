@@ -7,6 +7,7 @@ import { CandidateStances } from '@/lib/types';
 export default function Home() {
   const [candidateName, setCandidateName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<CandidateStances | null>(null);
   const [inputName, setInputName] = useState('');
@@ -23,6 +24,7 @@ export default function Home() {
 
     setLoading(true);
     setError(null);
+    setStatus('Checking saved results...');
     setResults(null);
     setInputName(candidateName.trim());
     setCorrectedName('');
@@ -68,7 +70,7 @@ export default function Home() {
               
               switch (data.type) {
                 case 'status':
-                  setError(data.message);
+                  setStatus(data.message);
                   // If this is the "Analyzing [Name]..." message, extract the corrected name
                   if (data.message && data.message.includes('Analyzing ') && data.message.endsWith('...')) {
                     const extractedName = data.message.replace('Analyzing ', '').replace('...', '');
@@ -76,10 +78,11 @@ export default function Home() {
                   }
                   break;
                 case 'progress':
-                  setError(`Processing stance ${data.current}/${data.total}: ${data.stance}`);
+                  setStatus(`Processing stance ${data.current}/${data.total}: ${data.stance}`);
                   break;
                 case 'complete':
                   setResults(data.data);
+                  setStatus(null);
                   setError(null);
                   break;
                 case 'error':
@@ -96,6 +99,7 @@ export default function Home() {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
+      setStatus(null);
     }
   };
 
@@ -110,7 +114,7 @@ export default function Home() {
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">CandidStance</h1>
           <p className="text-xl text-gray-600">
-            Discover candidates&apos; positions on key issues with AI-driven analysis and credible sources
+            Explore candidates&apos; positions through cited evidence
           </p>
         </div>
 
@@ -129,9 +133,10 @@ export default function Home() {
               disabled={loading}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
             >
-              {loading ? 'AI Processing...' : 'Search'}
+              {loading ? 'Researching...' : 'Search'}
             </button>
           </div>
+          {status && <p className="mt-2 text-blue-700 text-sm" role="status">{status}</p>}
           {error && (
             <p className="mt-2 text-red-600 text-sm">{error}</p>
           )}
@@ -140,7 +145,7 @@ export default function Home() {
               <div className="inline-flex items-center px-4 py-2 bg-blue-50 text-blue-700 rounded-lg">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
                                               <span className="text-sm font-medium">
-                                Streaming AI analysis for candidate... Check the message above for progress.
+                                Researching sources. A new search may take a few minutes.
                               </span>
               </div>
             </div>
@@ -157,6 +162,9 @@ export default function Home() {
             <h2 className="text-2xl font-semibold text-gray-900 mb-6 text-center">
               Stances for {results.candidateName}
             </h2>
+            <p className="text-center text-sm text-gray-500 mb-6">
+              {results.cached ? 'Showing saved research. ' : ''}Summaries are limited to retrieved evidence and reviewed by AI, not independently fact-checked. Gaps do not mean a candidate has no position.
+            </p>
             {results.stances && Array.isArray(results.stances) ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {results.stances.map((stance, index) => (

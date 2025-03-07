@@ -1,17 +1,17 @@
 # CandidStance
 
-CandidStance helps you discover candidates' positions on key issues with AI-driven analysis and credible sources. Built with Next.js and powered by AI, it provides verified, sourced information about politicians' positions on important topics.
+CandidStance explores U.S. politicians’ positions using retrieved evidence and GPT-4o summaries. Claims include citations and supporting excerpts; AI review is not independent fact-checking.
 
 ## Features
 
 ### Core Features
-- **AI-Driven Analysis**: Utilizes GPT-4 to analyze and summarize political positions
-- **Source Verification**: Cross-references positions with credible news sources
-- **Auto Data Refresh**: Updates candidate information every 30 days to maintain accuracy
-- **Smart Caching**: PostgreSQL caching system for quick, efficient responses
-- **API Protection**: Implements rate limiting and security measures
-- **Name Recognition**: Smart politician name detection and correction
-- **Modern Interface**: Clean, responsive UI optimized for all devices
+- **Evidence first**: Up to four short source searches, followed by bounded article retrieval.
+- **Cited claims**: Every displayed claim must cite retrieved evidence, include a matching quotation, and pass a separate AI support check.
+- **Three sources maximum**: Each issue card shows at most three sources with full clickable URLs and expandable supporting excerpts.
+- **Transparent gaps**: Insufficient evidence is shown explicitly. Search-excerpt-only sources are labeled.
+- **Caching**: Supported issues are cached for 30 days; gaps for 24 hours. Expired gaps are retried on the next search without regenerating still-fresh supported issues.
+- **Name cache**: Previously resolved names use PostgreSQL aliases before any OpenAI call.
+- **Bounded usage**: One research job at a time per app process, no automatic API retries, and no paid research when the database is unavailable.
 
 ### Issue Coverage
 Comprehensive coverage of major political issues including:
@@ -28,11 +28,6 @@ Comprehensive coverage of major political issues including:
 - LGBTQ+ Rights
 - Education
 
-### Quality Assurance
-- **Verified Sources**: All positions are backed by credible news sources
-- **User Experience**: Clean, intuitive design for easy navigation
-- **Performance**: Optimized loading speeds with Next.js
-
 ## Tech Stack
 
 - **Frontend**: Next.js 15 with App Router
@@ -44,6 +39,12 @@ Comprehensive coverage of major political issues including:
 - **CI/CD**: GitHub → AWS CodeBuild → Amazon ECR → K3s
 - **Container**: Docker (linux/amd64)
 - **Package Manager**: pnpm
+
+## Research limitations
+
+Searches cover grouped topics to limit API costs and may miss relevant evidence. Article retrieval is restricted to configured news/government domains; inaccessible pages fall back to clearly labeled search excerpts. The system does not establish that a politician has no position when evidence is missing. Historical statements must retain their time context. AI support checks reduce unsupported claims but are not a guarantee of accuracy.
+
+Legacy summaries are excluded from the new evidence cache. The database schema in `lib/database/schema.sql` is applied by deployment before the application update. New local databases must also load this schema. Use `pnpm test` for mocked citation, cache, and retrieval tests without API calls.
 
 ## Getting Started
 
@@ -142,7 +143,7 @@ Created by Pravir Goosari
 ## Acknowledgments
 
 - Next.js team
-- OpenAI for GPT-4 API
-- Google for Custom Search API
+- OpenAI for GPT-4o API
+- RapidAPI for source search
 - AWS for cloud services
 - Kubernetes for container orchestration

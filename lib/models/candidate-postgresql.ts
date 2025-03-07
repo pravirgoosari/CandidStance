@@ -23,7 +23,7 @@ export async function findCandidate(name: string): Promise<CandidateDocument | n
   try {
     const pool = getPool();
     const result = await pool.query(
-      'SELECT id, name, normalized_name as "normalizedName", last_updated as "lastUpdated", search_count as "searchCount", last_searched as "lastSearched", stances FROM candidates WHERE normalized_name = $1',
+      'SELECT id, name, normalized_name as "normalizedName", last_updated as "lastUpdated", search_count as "searchCount", last_searched as "lastSearched", stances FROM candidates WHERE normalized_name = $1 OR normalized_name = (SELECT canonical_name FROM candidate_aliases WHERE alias = $1)',
       [normalizedName]
     );
     
@@ -93,4 +93,9 @@ export async function initializeDatabase(): Promise<void> {
     console.error('Error initializing database schema:', error);
     throw error;
   }
+}
+
+export async function saveAlias(input: string, canonical: string): Promise<void> {
+  await getPool().query(`INSERT INTO candidate_aliases (alias, canonical_name) VALUES ($1, $2)
+    ON CONFLICT (alias) DO UPDATE SET canonical_name = EXCLUDED.canonical_name`, [normalizeName(input), normalizeName(canonical)]);
 }

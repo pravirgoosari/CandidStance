@@ -5,7 +5,7 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN pnpm build
+RUN pnpm test && pnpm build
 
 FROM node:22-alpine AS runner
 WORKDIR /app

@@ -1,219 +1,71 @@
-import { PoliticalStance, Source } from './types';
+import { Evidence, normalizeText } from './evidence';
 
-// Helper function to delay execution
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-interface WebSearchResult {
-  title: string;
-  href: string;
-  body?: string;
-  description?: string;
-  source?: string;
+const DOMAINS = ['reuters.com', 'apnews.com', 'bbc.com', 'bbc.co.uk', 'npr.org', 'pbs.org', 'politico.com', 'axios.com', 'thehill.com', 'cnbc.com', 'foxnews.com', 'cnn.com', 'nytimes.com', 'washingtonpost.com', 'wsj.com', 'whitehouse.gov', 'congress.gov', 'senate.gov', 'house.gov', 'presidency.ucsb.edu', 'c-span.org'];
+export function sourceUrl(value: unknown): URL | null {
+  if (typeof value !== 'string') return null;
+  try {
+    const u = new URL(value);
+    if (u.protocol !== 'https:' || u.username || u.password || u.port || !DOMAINS.some(d => u.hostname === d || u.hostname.endsWith('.' + d))) return null;
+    u.hash = '';
+    for (const key of [...u.searchParams.keys()]) if (key.startsWith('utm_')) u.searchParams.delete(key);
+    return u;
+  } catch { return null; }
 }
-
-interface ScoredArticle extends WebSearchResult {
-  score: number;
+export function extractText(html: string): string {
+  return normalizeText(html.replace(/<(script|style|nav|header|footer|noscript)\b[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"')
+    .replace(/&#(?:39|x27);/gi, "'").replace(/&(?:lsquo|rsquo);/g, "'").replace(/&(?:ldquo|rdquo);/g, '"'));
 }
-
-function scoreArticle(article: WebSearchResult, stance: PoliticalStance): number {
-  let score = 0;
-  const lowerTitle = article.title.toLowerCase();
-  const lowerBody = article.body?.toLowerCase() || '';
-  const candidateName = stance.stance.split(' ')[0].toLowerCase(); // e.g., "trump" or "harris"
-  const issueWords = stance.issue.toLowerCase().split(' ');
-
-  // Base scoring for candidate name
-  if (lowerTitle.includes(candidateName)) {
-    score += 2; // Reduced from 3 to 2
-  }
-  if (lowerBody.includes(candidateName)) {
-    score += 1;
-  }
-
-  // Score for issue keywords
-  let hasIssueInTitle = false;
-  issueWords.forEach(word => {
-    if (word.length > 3) { // Ignore small words like "and", "for"
-      if (lowerTitle.includes(word)) {
-        score += 2;
-        hasIssueInTitle = true;
-      }
-      if (lowerBody.includes(word)) {
-        score += 1;
-      }
-    }
+async function readBounded(response: Response, limit: number): Promise<string> {
+  const reader = response.body?.getReader();
+  if (!reader) return '';
+  const chunks: Uint8Array[] = []; let size = 0;
+  try {
+    while (true) { const { done, value } = await reader.read(); if (done) break; size += value.length;
+      if (size > limit) throw new Error('Response too large'); chunks.push(value); }
+    return Buffer.concat(chunks).toString('utf8');
+  } finally { await reader.cancel().catch(() => {}); }
+}
+export async function searchEvidence(candidate: string, terms: string, fetcher = fetch): Promise<Evidence[]> {
+  const response = await fetcher('https://google-api31.p.rapidapi.com/websearch', {
+    method: 'POST', headers: { 'x-rapidapi-key': process.env.GOOGLE_API_KEY || '', 'x-rapidapi-host': 'google-api31.p.rapidapi.com', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: `"${candidate}" ${terms}`, safesearch: 'off', timelimit: '', region: 'wt-wt', max_results: 10 }),
+    signal: AbortSignal.timeout(30000)
   });
-
-  // Bonus for having both candidate name and issue in title
-  if (hasIssueInTitle && lowerTitle.includes(candidateName)) {
-    score += 3;
+  if (!response.ok) { await response.body?.cancel(); throw new Error(response.status === 429 ? 'Source provider quota or rate limit reached.' : `Source provider returned HTTP ${response.status}.`); }
+  const data = JSON.parse(await readBounded(response, 256000));
+  if (!Array.isArray(data.result)) throw new Error('Source provider returned an unexpected format.');
+  const results: Evidence[] = []; const urls = new Set<string>();
+  for (const row of data.result) {
+    const u = sourceUrl(row?.href);
+    const text = typeof row?.body === 'string' ? normalizeText(row.body) : typeof row?.description === 'string' ? normalizeText(row.description) : '';
+    if (!u || urls.has(u.href) || typeof row.title !== 'string' || text.length < 40) continue;
+    urls.add(u.href); results.push({ id: '', url: u.href, title: row.title.slice(0, 250), source: u.hostname, text: text.slice(0, 1600), evidenceType: 'search-excerpt' });
   }
-
-  // Bonus for policy/stance keywords in title
-  const policyKeywords = ['policy', 'stance', 'position', 'plan', 'proposal', 'announces', 'pledges'];
-  if (policyKeywords.some(keyword => lowerTitle.includes(keyword))) {
-    score += 2;
-  }
-
-  // Penalty for other politician names in title
-  const otherPoliticians = ['biden', 'harris', 'desantis', 'pence', 'newsom', 'pelosi', 'mcconnell', 'obama']
-    .filter(name => name !== candidateName);
-  if (otherPoliticians.some(name => lowerTitle.includes(name))) {
-    score -= 2;
-  }
-
-  // Small bonus for reputable sources (reduced from 3 to 1)
-  const reputableSources = [
-    'reuters', 'ap', 'bloomberg', 'nytimes', 'wsj', 'washingtonpost',
-    'bbc', 'npr', 'politico', 'thehill', 'axios', 'cnbc', 'forbes'
-  ];
-  if (reputableSources.some(s => article.source?.toLowerCase().includes(s))) {
-    score += 1;
-  }
-
-  return score;
+  return results.slice(0, 3);
 }
-
-export async function findRelevantSources(stance: PoliticalStance, maxResults: number = 2, attempt: number = 0): Promise<Source[]> {
+export async function readArticle(evidence: Evidence, fetcher = fetch): Promise<Evidence> {
   try {
-    // Check for API key at runtime
-    if (!process.env.GOOGLE_API_KEY) {
-      throw new Error('Missing GOOGLE_API_KEY environment variable');
-    }
-
-    // Use the full stance text as the search query
-    const searchQuery = stance.stance;
-    console.log('\n-------------------');
-    console.log(`Starting search for stance: ${stance.issue}`);
-    console.log(`Query: ${searchQuery}`);
-    console.log('-------------------');
-
-    // Add a delay before each API call to respect rate limits
-    await delay(1100);
-
-    const response = await fetch('https://google-api31.p.rapidapi.com/websearch', {
-      method: 'POST',
-      headers: {
-        'x-rapidapi-key': process.env.GOOGLE_API_KEY!,
-        'x-rapidapi-host': 'google-api31.p.rapidapi.com',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        text: searchQuery,
-        safesearch: 'off',
-        timelimit: '',
-        region: 'wt-wt',
-        max_results: 20
-      }),
-      signal: AbortSignal.timeout(15000)
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Google API Error Response:', {
-        status: response.status,
-        statusText: response.statusText,
-        body: errorText
-      });
-
-      if (response.status === 429 && attempt < 1) {
-        console.log('Rate limit hit, waiting 2 seconds and retrying...');
-        await delay(2000);
-        return findRelevantSources(stance, maxResults, attempt + 1);
+    // Only known publisher hosts, no arbitrary URLs or automatic redirects.
+    let url = sourceUrl(evidence.url);
+    if (!url) return evidence;
+    const signal = AbortSignal.timeout(10000);
+    for (let redirect = 0; redirect <= 2; redirect++) {
+      const response: Response = await fetcher(url.href, { redirect: 'manual', signal, headers: { 'User-Agent': 'CandidStance/1.0 (+https://candidstance.ai)', Accept: 'text/html' } });
+      if (response.status >= 300 && response.status < 400) {
+        const location: string | null = response.headers.get('location'); await response.body?.cancel();
+        url = location ? sourceUrl(new URL(location, url).href) : null;
+        if (!url) return evidence;
+        continue;
       }
-
-      throw new Error(response.status === 429
-        ? 'Source lookup is rate-limited. This summary is unverified; please try again later.'
-        : 'Source lookup is unavailable. This summary is unverified; please try again later.');
+      if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) { await response.body?.cancel(); return evidence; }
+      const html = await readBounded(response, 750000);
+      const main = html.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i)?.[1] || html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i)?.[1];
+      if (!main) return evidence;
+      const text = extractText(main).slice(0, 6500);
+      if (text.length < 250 || /verify you are human|access denied|enable javascript/i.test(text)) return evidence;
+      return { ...evidence, text, evidenceType: 'article' };
     }
-
-    const data = await response.json();
-
-    if (!data.result || data.result.length === 0) {
-      console.log('No results found in Google API response');
-      return [];
-    }
-
-    // Log all articles before filtering
-    console.log(`\nAll articles found for ${stance.issue}:`);
-    data.result.forEach((article: WebSearchResult, index: number) => {
-      console.log(`\n${index + 1}. "${article.title}"`);
-      console.log(`   Source: ${article.source || new URL(article.href).hostname}`);
-      console.log(`   URL: ${article.href}`);
-    });
-
-    // Filter and score articles
-    const scoredArticles = data.result.map((article: WebSearchResult) => ({
-      ...article,
-      score: scoreArticle(article, stance)
-    }));
-
-    // Log scoring details
-    console.log(`\nScored articles for ${stance.issue}:`);
-    scoredArticles.forEach((article: ScoredArticle, index: number) => {
-      console.log(`\n${index + 1}. Score: ${article.score}`);
-      console.log(`   Title: "${article.title}"`);
-      console.log(`   Source: ${article.source || new URL(article.href).hostname}`);
-      console.log(`   Intended for: ${stance.issue}`);
-    });
-
-    // Sort by score and take only articles with score >= 5
-    const highScoringArticles = scoredArticles
-      .filter((article: ScoredArticle) => article.score >= 5)
-      .sort((a: ScoredArticle, b: ScoredArticle) => b.score - a.score)
-      .slice(0, maxResults)
-      .map((article: ScoredArticle) => ({
-        url: article.href,
-        title: article.title,
-        source: article.source || new URL(article.href).hostname
-      }));
-
-    console.log(`\nHigh scoring articles (score >= 5) for ${stance.issue}:`);
-    if (highScoringArticles.length > 0) {
-      highScoringArticles.forEach((article: Source, index: number) => {
-        console.log(`\n${index + 1}. "${article.title}"`);
-        console.log(`   Source: ${article.source}`);
-      });
-    } else {
-      console.log('No articles met the minimum score threshold of 5');
-    }
-    console.log(`\nFinished processing stance: ${stance.issue}`);
-    console.log('-------------------\n');
-
-    // If no articles meet the threshold, return a special message
-    if (highScoringArticles.length === 0) {
-      return [{
-        url: '',
-        title: 'We are unable to verify this information',
-        source: 'No reliable sources found'
-      }];
-    }
-
-    return highScoringArticles;
-  } catch (error) {
-    console.error(`Error fetching articles for stance ${stance.issue}:`, error);
-    throw error;
-  }
-}
-
-export async function verifyStanceWithSources(stance: PoliticalStance): Promise<PoliticalStance> {
-  try {
-    // Do ONE search for this specific stance and keep its results
-    const sources = await findRelevantSources(stance);
-
-    // Return the stance with ONLY its intended sources
-    return {
-      ...stance,
-      sources: sources
-    };
-  } catch (error) {
-    console.error(`Error finding sources for stance ${stance.issue}:`, error);
-    return {
-      ...stance,
-      sources: [],
-      sourceError: error instanceof Error && error.message.startsWith('Source lookup ')
-        ? error.message
-        : 'Source lookup is unavailable. This summary is unverified; please try again later.'
-    };
-  }
+  } catch { /* Keep the explicitly labeled search excerpt when a page is inaccessible. */ }
+  return evidence;
 }

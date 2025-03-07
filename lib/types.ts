@@ -2,6 +2,7 @@ export interface Source {
   url: string;
   title: string;
   source: string;
+  evidenceType?: 'article' | 'search-excerpt';
 }
 
 export interface PoliticalStance {
@@ -9,6 +10,9 @@ export interface PoliticalStance {
   stance: string;
   sources: Source[];
   sourceError?: string;
+  evidenceVersion?: number;
+  checkedAt?: string;
+  claims?: { text: string; citations: { sourceIndex: number; quote: string }[] }[];
 }
 
 export interface CandidateStances {
@@ -16,6 +20,7 @@ export interface CandidateStances {
   candidateName: string;
   stances: PoliticalStance[];
   error?: string;
+  cached?: boolean;
 }
 
 export interface ApiResponse {

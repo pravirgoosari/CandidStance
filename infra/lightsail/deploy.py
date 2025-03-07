@@ -15,6 +15,7 @@ with connection() as ssh:
         return subprocess.run(ssh+[command],input=data,text=True,check=True,capture_output=capture)
     run('sudo k3s kubectl apply -f -',json.dumps(secret))
     previous=run("sudo k3s kubectl -n candidstance get deployment candidstance-app -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || true",capture=True).stdout
+    run('sudo k3s kubectl -n candidstance exec -i postgres-0 -- psql -U candidstance -d candidstance -v ON_ERROR_STOP=1', (ROOT/'lib/database/schema.sql').read_text())
     run('sudo k3s kubectl apply -f -',manifest)
     try:
         run('sudo k3s kubectl -n candidstance rollout status statefulset/postgres --timeout=180s')

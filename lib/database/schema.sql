@@ -26,3 +26,9 @@ COMMENT ON COLUMN candidates.stances IS 'JSON array of political stances with so
 COMMENT ON COLUMN candidates.search_count IS 'Number of times this candidate has been searched';
 COMMENT ON COLUMN candidates.last_updated IS 'When the candidate data was last updated from API';
 COMMENT ON COLUMN candidates.last_searched IS 'When the candidate was last searched by a user';
+
+-- Remember successful name resolutions so repeat searches need no OpenAI call.
+CREATE TABLE IF NOT EXISTS candidate_aliases (
+  alias VARCHAR(255) PRIMARY KEY,
+  canonical_name VARCHAR(255) NOT NULL
+);

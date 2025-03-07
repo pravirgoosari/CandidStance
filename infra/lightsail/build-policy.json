@@ -42,11 +42,20 @@
       "Effect": "Allow",
       "Action": [
         "lightsail:GetInstanceAccessDetails",
-        "lightsail:GetInstancePortStates",
         "lightsail:OpenInstancePublicPorts",
         "lightsail:CloseInstancePublicPorts"
       ],
       "Resource": "arn:aws:lightsail:us-east-1:041417444316:Instance/7d9932d6-030e-4d6b-be20-1fec31d6808d"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "lightsail:GetInstancePortStates",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
     }
   ]
 }

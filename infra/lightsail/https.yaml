@@ -7,8 +7,11 @@ spec:
   valuesContent: |-
     deployment:
       replicas: 1
-      strategy:
-        type: Recreate
+    updateStrategy:
+      type: Recreate
+      rollingUpdate: null
+    podSecurityContext:
+      fsGroup: 65532
     persistence:
       enabled: true
       size: 128Mi

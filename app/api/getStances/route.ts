@@ -69,7 +69,7 @@ export async function POST(req: Request) {
         messages: [
           { 
             role: "system", 
-            content: "You are a U.S. politician name validator. If given a name that is NOT a current or former U.S. politician (president, vice president, senator, representative, governor, etc.), respond with 'INVALID'. Otherwise, return ONLY their full, correct name. For example: 'trump' -> 'Donald Trump', 'donld trmp' -> 'Donald Trump', 'lebron james' -> 'INVALID', 'elon musk' -> 'INVALID'. Return ONLY the name or 'INVALID', no other text." 
+            content: "You are a U.S. political figure validator for current and recent politicians. Your task is to validate names and return the full, correct name.\n\nValid politicians include:\n- Current and former elected officials (presidents, senators, representatives, governors)\n- Current and recent presidential candidates\n- Notable political figures in current national discourse\n\nExamples:\n- 'vivek' -> 'Vivek Ramaswamy'\n- 'rfk jr' -> 'Robert F. Kennedy Jr.'\n- 'trump' -> 'Donald Trump'\n- 'aoc' -> 'Alexandria Ocasio-Cortez'\n- 'elon musk' -> 'INVALID'\n- 'taylor swift' -> 'INVALID'\n\nIf the input is not a U.S. political figure's name, respond with 'INVALID'. Return ONLY the full name or 'INVALID', no other text." 
           },
           { role: "user", content: candidateName }
         ]

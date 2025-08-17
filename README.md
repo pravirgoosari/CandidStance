@@ -42,14 +42,15 @@ Comprehensive coverage of major political issues including:
 - **Search**: Google Custom Search API
 - **Hosting**: AWS EKS (Elastic Kubernetes Service)
 - **Container**: Docker with multi-architecture support
+- **Package Manager**: pnpm
 - **Font**: Space Grotesk via Google Fonts
 
 ## Getting Started
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/candiddeploy.git
-   cd candiddeploy
+   git clone https://github.com/pravirgoosari/CandidStance.git
+   cd CandidStance
    ```
 
 2. Install dependencies:
@@ -70,6 +71,10 @@ Comprehensive coverage of major political issues including:
    ```
 
 5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## Live Application
+
+The application is live at: [https://candidstance.ai](https://candidstance.ai)
 
 ## Quick Deployment
 
@@ -95,6 +100,13 @@ kubectl rollout status deployment/candidstance-app -n candidstance
 ## Deployment
 
 The application is deployed on AWS EKS (Elastic Kubernetes Service) with the following features:
+
+### **CI/CD Pipeline**
+- **Automated Deployment**: AWS CodePipeline with GitHub integration
+- **Build Process**: CodeBuild with Docker containerization
+- **Deployment**: Automatic EKS deployment on every push to main branch
+- **Webhook Integration**: GitHub push events trigger pipeline automatically
+- **Environment**: Production deployment to AWS EKS cluster
 
 ### **Infrastructure**
 - **Container Orchestration**: Kubernetes with AWS EKS
@@ -144,4 +156,4 @@ Created by Pravir Goosari
 - OpenAI for GPT-4 API
 - Google for Custom Search API
 - AWS for EKS, ECR, and RDS services
-- Kubernetes community for container orchestration
+- Kubernetes for container orchestration

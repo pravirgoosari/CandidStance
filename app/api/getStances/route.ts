@@ -8,6 +8,8 @@ import { findCandidate, updateCandidate, isStale } from '@/lib/models/candidate-
 export const maxDuration = 120; // 2 minutes
 export const dynamic = 'force-dynamic';
 
+
+
 function cleanAndParseJSON(jsonString: string): unknown {
   // Remove any markdown code block syntax
   let cleaned = jsonString.replace(/```json\n?|\n?```/g, '').trim();

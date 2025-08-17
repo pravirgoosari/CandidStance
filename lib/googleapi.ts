@@ -1,9 +1,5 @@
 import { PoliticalStance, Source } from './types';
 
-if (!process.env.GOOGLE_API_KEY) {
-  throw new Error('Missing GOOGLE_API_KEY environment variable');
-}
-
 // Helper function to delay execution
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -80,6 +76,11 @@ function scoreArticle(article: WebSearchResult, stance: PoliticalStance): number
 
 export async function findRelevantSources(stance: PoliticalStance, maxResults: number = 2): Promise<Source[]> {
   try {
+    // Check for API key at runtime
+    if (!process.env.GOOGLE_API_KEY) {
+      throw new Error('Missing GOOGLE_API_KEY environment variable');
+    }
+
     // Use the full stance text as the search query
     const searchQuery = stance.stance;
     console.log('\n-------------------');

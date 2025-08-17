@@ -1,5 +1,5 @@
 import { CandidateStances, PoliticalStance } from '../types.js';
-import pool from '../database/postgresql';
+import getPool from '../database/postgresql';
 
 export interface CandidateDocument {
   id?: number;
@@ -21,6 +21,7 @@ export async function findCandidate(name: string): Promise<CandidateDocument | n
   const normalizedName = normalizeName(name);
   
   try {
+    const pool = getPool();
     const result = await pool.query(
       'SELECT id, name, normalized_name as "normalizedName", last_updated as "lastUpdated", search_count as "searchCount", last_searched as "lastSearched", stances FROM candidates WHERE normalized_name = $1',
       [normalizedName]
@@ -53,6 +54,7 @@ export async function updateCandidate(data: CandidateStances): Promise<void> {
   const now = new Date();
 
   try {
+    const pool = getPool();
     // Convert stances array to JSON string for PostgreSQL JSONB column
     const stancesJson = JSON.stringify(data.stances);
     
@@ -83,6 +85,7 @@ export function isStale(lastUpdated: Date): boolean {
 // Initialize database schema
 export async function initializeDatabase(): Promise<void> {
   try {
+    const pool = getPool();
     const schema = await import('fs').then(fs => fs.readFileSync('./lib/database/schema.sql', 'utf8'));
     await pool.query(schema);
     console.log('Database schema initialized successfully');

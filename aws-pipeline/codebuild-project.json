@@ -2,13 +2,10 @@
     "name": "candidstance-build",
     "description": "Build and deploy CandidStance to EKS",
     "source": {
-        "type": "GITHUB",
-        "location": "https://github.com/pravirgoosari/CandidStance.git",
-        "gitCloneDepth": 1,
-        "buildspec": "aws-pipeline/buildspec.yml"
+        "type": "CODEPIPELINE"
     },
     "artifacts": {
-        "type": "NO_ARTIFACTS"
+        "type": "CODEPIPELINE"
     },
     "environment": {
         "type": "LINUX_CONTAINER",
@@ -29,6 +26,7 @@
         ]
     },
     "serviceRole": "arn:aws:iam::041417444316:role/candidstance-codebuild-role",
+    "buildspec": "buildspec.yml",
     "logsConfig": {
         "cloudWatchLogs": {
             "status": "ENABLED",

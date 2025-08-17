@@ -93,9 +93,9 @@ kubectl rollout status deployment/candidstance-app -n candidstance
 
 ## Environment Variables
 
-- `OPENAI_API_KEY`: Your OpenAI API key for GPT-4 access
-- `GOOGLE_API_KEY`: Your Google Custom Search API key
-- `DATABASE_URL`: Your PostgreSQL connection string
+- `OPENAI_API_KEY`: OpenAI API key for GPT-4 access
+- `GOOGLE_API_KEY`: Google Custom Search API key
+- `DATABASE_URL`: PostgreSQL connection string
 
 ## Deployment
 

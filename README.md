@@ -140,7 +140,7 @@ Created by Pravir Goosari
 
 ## Acknowledgments
 
-- Next.js team for the excellent framework
+- Next.js team
 - OpenAI for GPT-4 API
 - Google for Custom Search API
 - AWS for EKS, ECR, and RDS services

@@ -3,7 +3,6 @@ version: 0.2
 phases:
   pre_build:
     commands:
-      - echo "Hello World"
       - echo "Testing basic pipeline"
       - echo "Testing ECR login..."
       - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_REPOSITORY_URI
@@ -11,7 +10,7 @@ phases:
   build:
     commands:
       - echo "Build phase working"
-      - echo "Testing real Next.js application build..."
+      - echo "Testing Next.js application build..."
       - echo "Building Docker image for CandidStance app..."
       - docker build --build-arg OPENAI_API_KEY=$OPENAI_API_KEY --build-arg GOOGLE_API_KEY=$GOOGLE_API_KEY -t candidstance-app .
       - echo "Successfully built CandidStance app image"

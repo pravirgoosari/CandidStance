@@ -22,8 +22,8 @@
                         },
                         "configuration": {
                             "ConnectionArn": "arn:aws:codestar-connections:us-east-1:041417444316:connection/5c75704e-d222-4377-a3a1-1ee52dbdacb3",
-                                                     "FullRepositoryId": "pravirgoosari/CandidStance",
-                         "BranchName": "aws-migration"
+                            "FullRepositoryId": "pravirgoosari/CandidStance",
+                            "BranchName": "main"
                         },
                         "outputArtifacts": [
                             {

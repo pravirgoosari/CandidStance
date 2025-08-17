@@ -59,6 +59,29 @@
                         ]
                     }
                 ]
+            },
+            {
+                "name": "Deploy",
+                "actions": [
+                    {
+                        "name": "Deploy",
+                        "actionTypeId": {
+                            "category": "Build",
+                            "owner": "AWS",
+                            "provider": "CodeBuild",
+                            "version": "1"
+                        },
+                        "configuration": {
+                            "ProjectName": "candidstance-deploy"
+                        },
+                        "outputArtifacts": [],
+                        "inputArtifacts": [
+                            {
+                                "name": "SourceCode"
+                            }
+                        ]
+                    }
+                ]
             }
         ]
     }

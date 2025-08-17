@@ -35,6 +35,13 @@
         {
             "Effect": "Allow",
             "Action": [
+                "eks:AccessKubernetesApi"
+            ],
+            "Resource": "arn:aws:eks:us-east-1:041417444316:cluster/candidstance-cluster"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
                 "s3:GetObject",
                 "s3:GetObjectVersion",
                 "s3:PutObject"

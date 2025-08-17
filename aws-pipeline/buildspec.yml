@@ -15,7 +15,7 @@ phases:
 
   build:
     commands:
-      - echo Build started on `date`
+      - echo Build started on date
       - echo Building the Docker image...
       - docker buildx build --platform linux/amd64 -t $IMAGE_URI .
       - docker tag $IMAGE_URI $REPOSITORY_URI:$IMAGE_TAG
@@ -23,7 +23,7 @@ phases:
 
   post_build:
     commands:
-      - echo Build completed on `date`
+      - echo Build completed on date
       - echo Pushing the Docker image...
       - docker push $IMAGE_URI
       - docker push $REPOSITORY_URI:$IMAGE_TAG
@@ -33,7 +33,7 @@ phases:
       - aws eks update-kubeconfig --name candidstance-cluster --region us-east-1
       - kubectl set image deployment/candidstance-app candidstance-app=$REPOSITORY_URI:$IMAGE_TAG -n candidstance
       - kubectl rollout status deployment/candidstance-app -n candidstance
-      - echo Deployment completed on `date`
+      - echo Deployment completed on date
 
 artifacts:
   files:

@@ -10,8 +10,7 @@ phases:
   build:
     commands:
       - echo "Deploying new image to EKS..."
-      - echo "Image URI from build stage: $IMAGE_URI"
-      - kubectl set image deployment/candidstance-app candidstance-app=041417444316.dkr.ecr.us-east-1.amazonaws.com/candidstance-app:latest -n candidstance
+      - "kubectl set image deployment/candidstance-app candidstance-app=041417444316.dkr.ecr.us-east-1.amazonaws.com/candidstance-app:latest -n candidstance"
       - echo "Image updated in deployment"
       - kubectl rollout status deployment/candidstance-app -n candidstance --timeout=300s
       - echo "Deployment rollout completed successfully"
@@ -20,3 +19,7 @@ phases:
     commands:
       - echo "Deployment completed successfully!"
       - echo "New image is now running in EKS"
+
+artifacts:
+  files:
+    - "**/*"

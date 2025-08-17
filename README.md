@@ -8,7 +8,7 @@ CandidStance helps you discover candidates' positions on key issues with AI-driv
 - 🤖 **AI-Driven Analysis**: Utilizes GPT-4 to analyze and summarize political positions
 - 📰 **Source Verification**: Cross-references positions with credible news sources
 - 🔄 **Auto Data Refresh**: Updates candidate information every 30 days to maintain accuracy
-- 💾 **Smart Caching**: MongoDB caching system for quick, efficient responses
+- 💾 **Smart Caching**: PostgreSQL caching system for quick, efficient responses
 - ⚡ **API Protection**: Implements rate limiting and security measures
 - 🔍 **Name Recognition**: Smart politician name detection and correction
 - 📱 **Modern Interface**: Clean, responsive UI optimized for all devices
@@ -37,7 +37,7 @@ Comprehensive coverage of major political issues including:
 
 - **Frontend**: Next.js 14 with App Router
 - **Styling**: Tailwind CSS
-- **Database**: MongoDB
+- **Database**: PostgreSQL
 - **AI Integration**: OpenAI GPT-4
 - **Search**: Google Custom Search API
 - **Hosting**: DigitalOcean App Platform
@@ -60,7 +60,7 @@ Comprehensive coverage of major political issues including:
    ```bash
    OPENAI_API_KEY=your_openai_api_key
    GOOGLE_API_KEY=your_google_api_key
-   MONGODB_URI=your_mongodb_uri
+   DATABASE_URL=your_postgresql_connection_string
    ```
 
 4. Run the development server:
@@ -74,7 +74,7 @@ Comprehensive coverage of major political issues including:
 
 - `OPENAI_API_KEY`: Your OpenAI API key for GPT-4 access
 - `GOOGLE_API_KEY`: Your Google Custom Search API key
-- `MONGODB_URI`: Your MongoDB connection string
+- `DATABASE_URL`: Your PostgreSQL connection string
 
 ## Deployment
 
@@ -86,7 +86,7 @@ The application is configured for deployment on DigitalOcean App Platform with t
    - Zero-downtime deployments
 
 2. **Database Integration**
-   - MongoDB integration via DigitalOcean Managed Database
+   - PostgreSQL integration via AWS RDS
    - Automatic backups and updates
    - High-availability configuration
 
@@ -118,4 +118,4 @@ Created by Pravir Goosari
 - Next.js team for the excellent framework
 - OpenAI for GPT-4 API
 - Google for Custom Search API
-- DigitalOcean for hosting and database services
+- AWS for hosting and database services

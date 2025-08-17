@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { openai, GPT_SYSTEM_PROMPT, generateUserPrompt } from '@/lib/openai';
 import { verifyStanceWithSources } from '@/lib/googleapi';
 import { ApiResponse, PoliticalStance } from '@/lib/types';
-import { findCandidate, updateCandidate, isStale } from '@/lib/models/candidate';
+import { findCandidate, updateCandidate, isStale } from '@/lib/models/candidate-postgresql';
 
 function cleanAndParseJSON(jsonString: string): unknown {
   // Remove any markdown code block syntax

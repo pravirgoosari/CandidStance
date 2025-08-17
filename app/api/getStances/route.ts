@@ -4,6 +4,10 @@ import { verifyStanceWithSources } from '@/lib/googleapi';
 import { ApiResponse, PoliticalStance } from '@/lib/types';
 import { findCandidate, updateCandidate, isStale } from '@/lib/models/candidate-postgresql';
 
+// Increase timeout for this API route
+export const maxDuration = 120; // 2 minutes
+export const dynamic = 'force-dynamic';
+
 function cleanAndParseJSON(jsonString: string): unknown {
   // Remove any markdown code block syntax
   let cleaned = jsonString.replace(/```json\n?|\n?```/g, '').trim();
@@ -50,15 +54,167 @@ function cleanAndParseJSON(jsonString: string): unknown {
   }
 }
 
+
+
+// Streaming function for real-time updates
+async function processCandidateWithStream(candidateName: string, controller: ReadableStreamDefaultController) {
+  try {
+    // Send initial status
+    controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'status', message: 'Starting analysis...' })}\n\n`));
+    
+    // First, validate and get the correct name
+    controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'status', message: 'Validating candidate name...' })}\n\n`));
+    
+    const nameCompletion = await openai.chat.completions.create({
+      model: "gpt-4-turbo-preview",
+      temperature: 0,
+      messages: [
+        { 
+          role: "system", 
+          content: "You are a U.S. political figure validator for current and recent politicians. Your task is to validate names and return the full, correct name.\n\nValid politicians include:\n- Current and former elected officials (presidents, senators, representatives, governors)\n- Current and recent presidential candidates\n- Notable political figures in current national discourse\n\nExamples:\n- 'vivek' -> 'Vivek Ramaswamy'\n- 'rfk jr' -> 'Robert F. Kennedy Jr.'\n- 'trump' -> 'Donald Trump'\n- 'aoc' -> 'Alexandria Ocasio-Cortez'\n- 'elon musk' -> 'INVALID'\n- 'taylor swift' -> 'INVALID'\n\nIf the input is not a U.S. political figure's name, respond with 'INVALID'. Return ONLY the full name or 'INVALID', no other text." 
+        },
+        { role: "user", content: candidateName }
+      ]
+    });
+
+    const correctedName = nameCompletion.choices[0]?.message?.content?.trim() || candidateName;
+
+    if (correctedName === 'INVALID') {
+      controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'error', message: 'Please enter a U.S. politician' })}\n\n`));
+      controller.close();
+      return;
+    }
+
+    controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'status', message: `Analyzing ${correctedName}...` })}\n\n`));
+
+    // Check database for cached data
+    try {
+      const cachedData = await findCandidate(correctedName);
+      
+      if (cachedData && !isStale(cachedData.lastUpdated)) {
+        // Transform CandidateDocument to CandidateStances format
+        const transformedData = {
+          inputName: candidateName,
+          candidateName: cachedData.name,
+          stances: cachedData.stances
+        };
+        
+        controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'complete', data: transformedData })}\n\n`));
+        controller.close();
+        return;
+      }
+    } catch (dbError) {
+      console.error('Database error:', dbError);
+    }
+
+    // Generate AI response
+    controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'status', message: 'Generating AI analysis...' })}\n\n`));
+    
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4-turbo-preview",
+      temperature: 0,
+      messages: [
+        { role: "system", content: GPT_SYSTEM_PROMPT },
+        { role: "user", content: generateUserPrompt(correctedName) }
+      ]
+    });
+
+    const response = completion.choices[0]?.message?.content;
+    
+    if (!response) {
+      controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'error', message: 'Failed to get response from AI' })}\n\n`));
+      controller.close();
+      return;
+    }
+
+    try {
+      const gptStances = cleanAndParseJSON(response) as PoliticalStance[];
+      
+      if (!Array.isArray(gptStances)) {
+        throw new Error('Response is not an array of stances');
+      }
+
+      // Process stances with real-time updates
+      controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'status', message: `Processing ${gptStances.length} stances...` })}\n\n`));
+      
+      const stancesWithSources: PoliticalStance[] = [];
+      for (let i = 0; i < gptStances.length; i++) {
+        const stance = gptStances[i];
+        
+        controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'progress', current: i + 1, total: gptStances.length, stance: stance.issue })}\n\n`));
+        
+        if (stance.stance === 'No Information Found') {
+          stancesWithSources.push({ ...stance, sources: [] });
+          continue;
+        }
+
+        // Use the Google API to verify and get sources
+        const verifiedStance = await verifyStanceWithSources(stance);
+        stancesWithSources.push(verifiedStance);
+      }
+
+      const result = {
+        inputName: candidateName,
+        candidateName: correctedName,
+        stances: stancesWithSources
+      };
+
+      // Update database
+      controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'status', message: 'Saving to database...' })}\n\n`));
+      
+      try {
+        await updateCandidate(result);
+        controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'status', message: 'Analysis complete!' })}\n\n`));
+      } catch (dbError) {
+        console.error('Failed to update database:', dbError);
+      }
+
+      // Send final result
+      controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'complete', data: result })}\n\n`));
+      controller.close();
+      
+    } catch (parseError) {
+      console.error('Parse error:', parseError);
+      controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'error', message: 'Failed to parse AI response' })}\n\n`));
+      controller.close();
+    }
+  } catch (error) {
+    console.error('Streaming error:', error);
+    controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'error', message: 'Processing failed' })}\n\n`));
+    controller.close();
+  }
+}
+
 export async function POST(req: Request) {
   try {
-    const { candidateName } = await req.json();
+    const { candidateName, stream } = await req.json();
 
     if (!candidateName) {
       return NextResponse.json<ApiResponse>({
         success: false,
         error: 'Candidate name is required'
       }, { status: 400 });
+    }
+
+    // If streaming is requested, use Server-Sent Events
+    if (stream) {
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            processCandidateWithStream(candidateName, controller);
+          }
+        }),
+        {
+          headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type',
+          },
+        }
+      );
     }
 
     // First, validate and get the correct name
@@ -85,8 +241,10 @@ export async function POST(req: Request) {
       }
 
       // Check database for cached data
+      let cachedData: any = null;
+      
       try {
-        const cachedData = await findCandidate(correctedName);
+        cachedData = await findCandidate(correctedName);
         
         if (cachedData && !isStale(cachedData.lastUpdated)) {
           return NextResponse.json<ApiResponse>({
@@ -99,11 +257,9 @@ export async function POST(req: Request) {
           });
         }
       } catch (dbError) {
-        console.error('Database error:', dbError);
+        console.error('Database error during lookup:', dbError);
         // Continue without cache if database fails
       }
-
-      // If no cache or stale, proceed with API calls
       const completion = await openai.chat.completions.create({
         model: "gpt-4-turbo-preview",
         temperature: 0,
@@ -116,6 +272,7 @@ export async function POST(req: Request) {
       const response = completion.choices[0]?.message?.content;
       
       if (!response) {
+        console.error(`No response content from OpenAI for "${correctedName}"`);
         return NextResponse.json<ApiResponse>({
           success: false,
           error: 'Failed to get response from AI'
@@ -155,7 +312,6 @@ export async function POST(req: Request) {
           console.error('Failed to update database:', dbError);
           // Continue without database update
         }
-
         return NextResponse.json<ApiResponse>({
           success: true,
           data: result

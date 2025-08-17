@@ -58,3 +58,8 @@ next-env.d.ts
 
 # OS
 Thumbs.db
+
+# TLS/SSL certificates
+*.crt
+*.key
+*.pem

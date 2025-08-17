@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: candidstance-lb
+  labels:
+    app: candidstance-app
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-idle-timeout: "300"
+    service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout: "300"
+    service.beta.kubernetes.io/aws-load-balancer-connection-draining-enabled: "true"
+    service.beta.kubernetes.io/aws-load-balancer-connection-draining-timeout: "300"
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: candidstance-app

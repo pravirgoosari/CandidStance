@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: candidstance-app
+  labels:
+    app: candidstance-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: candidstance-app
+  template:
+    metadata:
+      labels:
+        app: candidstance-app
+    spec:
+      containers:
+      - name: candidstance-app
+        image: 041417444316.dkr.ecr.us-east-1.amazonaws.com/candidstance-app:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: candidstance-secrets
+              key: database-url
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: candidstance-secrets
+              key: openai-api-key
+        - name: GOOGLE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: candidstance-secrets
+              key: google-api-key
+        - name: NODE_ENV
+          value: "production"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      imagePullSecrets:
+      - name: regcred

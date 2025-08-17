@@ -35,12 +35,13 @@ Comprehensive coverage of major political issues including:
 
 ## Tech Stack
 
-- **Frontend**: Next.js 14 with App Router
+- **Frontend**: Next.js 15 with App Router
 - **Styling**: Tailwind CSS
-- **Database**: PostgreSQL
+- **Database**: PostgreSQL (AWS RDS)
 - **AI Integration**: OpenAI GPT-4
 - **Search**: Google Custom Search API
-- **Hosting**: DigitalOcean App Platform
+- **Hosting**: AWS EKS (Elastic Kubernetes Service)
+- **Container**: Docker with multi-architecture support
 - **Font**: Space Grotesk via Google Fonts
 
 ## Getting Started
@@ -70,6 +71,21 @@ Comprehensive coverage of major political issues including:
 
 5. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+## Quick Deployment
+
+For production deployment on AWS EKS:
+
+```bash
+# Build and push Docker image
+docker buildx build --platform linux/amd64 -t candidstance:latest --load .
+docker tag candidstance:latest <your-ecr-repo>:latest
+docker push <your-ecr-repo>:latest
+
+# Deploy to Kubernetes
+kubectl set image deployment/candidstance-app candidstance-app=<your-ecr-repo>:latest -n candidstance
+kubectl rollout status deployment/candidstance-app -n candidstance
+```
+
 ## Environment Variables
 
 - `OPENAI_API_KEY`: Your OpenAI API key for GPT-4 access
@@ -78,28 +94,37 @@ Comprehensive coverage of major political issues including:
 
 ## Deployment
 
-The application is configured for deployment on DigitalOcean App Platform with the following features:
+The application is deployed on AWS EKS (Elastic Kubernetes Service) with the following features:
 
-1. **Automatic Deployment**
-   - Continuous deployment from the main branch
-   - Automatic builds triggered by git push
-   - Zero-downtime deployments
+### **Infrastructure**
+- **Container Orchestration**: Kubernetes with AWS EKS
+- **Container Registry**: Amazon ECR for Docker images
+- **Load Balancing**: AWS Application Load Balancer (ALB)
+- **Database**: PostgreSQL on AWS RDS
+- **Networking**: VPC with private subnets for security
 
-2. **Database Integration**
-   - PostgreSQL integration via AWS RDS
-   - Automatic backups and updates
-   - High-availability configuration
+### **Deployment Process**
+1. **Build**: Multi-architecture Docker image (linux/amd64)
+2. **Push**: Image pushed to Amazon ECR
+3. **Deploy**: Kubernetes deployment with rolling updates
+4. **Scale**: Configurable pod replicas for load handling
 
-3. **Security & Configuration**
-   - Secure environment variable management
-   - SSL/TLS certificate auto-renewal
-   - HTTPS enforcement
-   - Rate limiting and DDoS protection
+### **Configuration Files**
+- `Dockerfile` - Container configuration
+- `k8s/` - Kubernetes manifests
+- `scripts/` - Build and deployment scripts
 
-4. **Monitoring**
-   - Application health monitoring
-   - Resource usage tracking
-   - Error logging and alerting
+### **Environment Variables**
+Managed via Kubernetes secrets:
+- `DATABASE_URL` - PostgreSQL connection
+- `OPENAI_API_KEY` - OpenAI API access
+- `GOOGLE_API_KEY` - Google Search API access
+
+### **Scaling & Monitoring**
+- **Horizontal Pod Autoscaler**: Automatic scaling based on CPU usage
+- **Load Balancer**: Distributes traffic across multiple pods
+- **Logs**: Centralized logging via kubectl
+- **Health Checks**: Kubernetes liveness and readiness probes
 
 ## Contributing
 
@@ -118,4 +143,5 @@ Created by Pravir Goosari
 - Next.js team for the excellent framework
 - OpenAI for GPT-4 API
 - Google for Custom Search API
-- AWS for hosting and database services
+- AWS for EKS, ECR, and RDS services
+- Kubernetes community for container orchestration
